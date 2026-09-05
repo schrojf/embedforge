@@ -59,28 +59,29 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
         engine = build_engine(settings)
         app.state.engine = engine
-        # Loading here (not on first request) is what makes /readyz meaningful.
-        await engine.start()
-        info = engine.info
-        metrics.MODEL_INFO.info(
-            {
-                "id": info.id,
-                "name": info.name,
-                "dimension": str(info.dimension),
-                "symmetric": str(info.symmetric).lower(),
-                "version": __version__,
-            }
-        )
-        log.info(
-            "server_ready",
-            version=__version__,
-            model=info.id,
-            env=settings.env,
-            auth_enabled=settings.auth_enabled,
-        )
         try:
+            # Loading here (not on first request) is what makes /readyz meaningful.
+            await engine.start()
+            info = engine.info
+            metrics.MODEL_INFO.info(
+                {
+                    "id": info.id,
+                    "name": info.name,
+                    "dimension": str(info.dimension),
+                    "symmetric": str(info.symmetric).lower(),
+                    "version": __version__,
+                }
+            )
+            log.info(
+                "server_ready",
+                version=__version__,
+                model=info.id,
+                env=settings.env,
+                auth_enabled=settings.auth_enabled,
+            )
             yield
         finally:
+            # Inside the try, so a failed start still releases the thread pool.
             await engine.aclose()
 
     app = FastAPI(

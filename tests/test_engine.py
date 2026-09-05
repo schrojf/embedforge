@@ -200,3 +200,10 @@ async def test_a_backend_that_cannot_warm_up_fails_startup() -> None:
     with pytest.raises(RuntimeError):
         await engine.start()
     assert not engine.ready
+
+
+async def test_closing_a_never_started_engine_is_safe() -> None:
+    """A failed startup must still release the thread pool."""
+    engine = InferenceEngine(RecordingBackend())
+    await engine.aclose()
+    assert not engine.ready
