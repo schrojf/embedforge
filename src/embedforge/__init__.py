@@ -1,5 +1,11 @@
-__all__ = (  # noqa: F405
-    # TODO: Add all public symbols here.
-)
+"""EmbedForge: a production-ready embedding server.
 
-from .embedforge import *  # noqa: F403
+The public surface is intentionally small. Import submodules directly:
+
+    from embedforge.config import Settings
+    from embedforge.api.app import create_app
+"""
+
+from embedforge.version import __version__
+
+__all__ = ["__version__"]
