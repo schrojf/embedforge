@@ -41,13 +41,16 @@ classifiers = [
 
 dependencies = [
     "fastapi>=0.115",
+    "huggingface-hub>=1.0",
     "numpy>=2.0",
+    "onnxruntime>=1.20",
     "orjson>=3.10",
     "prometheus-client>=0.21",
     "pydantic>=2.9",
     "pydantic-settings>=2.6",
     "rich>=14",
     "structlog>=24.4",
+    "tokenizers>=0.20",
     "typer>=0.15",
     "uvicorn[standard]>=0.34",
 ]
@@ -68,7 +71,6 @@ dev = [
     "rich>=15.0.0",
     "basedpyright>=1.39.9",
     "funlog>=0.2.1",
-    "httpx>=0.28",
     "pytest-asyncio>=0.24",
     "httpx2>=2.12.0",
 ]

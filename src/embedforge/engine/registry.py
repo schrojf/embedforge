@@ -7,10 +7,14 @@ One model is loaded per process, chosen by `EMBEDFORGE_MODEL_ID`; the registry i
 
 from collections.abc import Callable
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from embedforge.config import Settings
 from embedforge.engine.base import EmbeddingBackend, ModelInfo
 from embedforge.errors import InvalidRequestError
+
+if TYPE_CHECKING:
+    from embedforge.engine.onnx_backend import OnnxModelConfig
 
 BackendFactory = Callable[[Settings, ModelInfo], EmbeddingBackend]
 
@@ -58,8 +62,29 @@ def create_backend(settings: Settings, model_id: str | None = None) -> Embedding
     return spec.factory(settings, spec.info)
 
 
+def onnx_config(model_id: str) -> "OnnxModelConfig":
+    """The download and runtime configuration for an ONNX model.
+
+    Raises for models that are not ONNX-backed, such as `dev-hash`.
+    """
+    from embedforge.engine.catalog import ONNX_CONFIGS
+
+    try:
+        return ONNX_CONFIGS[model_id]
+    except KeyError:
+        get_spec(model_id)  # Raises with the list of known ids if it is not a model at all.
+        raise InvalidRequestError(f"Model {model_id!r} has no files to manage.") from None
+
+
+def is_onnx_model(model_id: str) -> bool:
+    from embedforge.engine.catalog import ONNX_CONFIGS
+
+    return model_id in ONNX_CONFIGS
+
+
 # ---- Built-in models ----
 
+from embedforge.engine.catalog import CATALOG, build_backend  # noqa: E402
 from embedforge.engine.dev_hash import DEV_HASH_INFO, HashEmbeddingBackend  # noqa: E402
 
 register(
@@ -70,3 +95,13 @@ register(
         ),
     )
 )
+
+for _info, _config in CATALOG:
+    register(
+        ModelSpec(
+            info=_info,
+            # Bind the config per entry; a late-bound closure would give every model the
+            # last one in the loop.
+            factory=lambda settings, info, _config=_config: build_backend(settings, info, _config),
+        )
+    )

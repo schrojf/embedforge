@@ -26,31 +26,42 @@ err_console = Console(stderr=True)
 
 @app.command("list")
 def list_models() -> None:
-    """List every model this build can serve, and which one is configured."""
+    """List every model this build can serve, and whether its files are present."""
     from embedforge.config import get_settings
     from embedforge.engine import registry
+    from embedforge.engine.download import is_downloaded
 
-    active = get_settings().model_id
+    settings = get_settings()
+    active = settings.model_id
     table = Table(title="Available models", title_justify="left")
     table.add_column("ID", style="cyan", no_wrap=True)
     table.add_column("Dim", justify="right")
-    table.add_column("Max tokens", justify="right")
-    table.add_column("Symmetric")
+    table.add_column("Context", justify="right")
+    table.add_column("Sym")
     table.add_column("Size", justify="right")
-    table.add_column("Description")
+    table.add_column("Status")
     for spec in registry.list_specs():
         info = spec.info
-        marker = " [green](active)[/green]" if info.id == active else ""
+        if registry.is_onnx_model(info.id):
+            ready = is_downloaded(settings, info.id, registry.onnx_config(info.id))
+            status = "[green]ready[/green]" if ready else "[yellow]not downloaded[/yellow]"
+        else:
+            status = "[green]built in[/green]"
+        marker = " [green]*[/green]" if info.id == active else ""
         table.add_row(
             f"{info.id}{marker}",
             str(info.dimension),
-            str(info.max_input_tokens),
+            f"{info.max_input_tokens:,}",
             "yes" if info.symmetric else "no",
-            f"{info.size_mb} MB" if info.size_mb is not None else "-",
-            info.description.split(". ")[0],
+            f"{info.size_mb:,} MB" if info.size_mb else "-",
+            status,
         )
     console.print(table)
-    console.print(f"\nActive model: [cyan]{active}[/cyan]  (set EMBEDFORGE_MODEL_ID to change)")
+    console.print(
+        f"\n[green]*[/green] active model: [cyan]{active}[/cyan]"
+        "   (set EMBEDFORGE_MODEL_ID to change, then restart)"
+    )
+    console.print("[dim]embedforge model info ID  for the trade-offs of one model.[/dim]")
 
 
 @app.command("info")
@@ -85,6 +96,24 @@ def model_info(
         console.print("\n[yellow]Cons[/yellow]")
         for item in info.cons:
             console.print(f"  - {item}")
+
+
+def _usable_models(settings: object) -> list[str]:
+    """Models that can be loaded right now: built-in ones plus downloaded ones.
+
+    Comparing everything in the catalog would mostly report models that were never
+    downloaded, which is noise rather than a result.
+    """
+    from embedforge.engine import registry
+    from embedforge.engine.download import is_downloaded
+
+    ready: list[str] = []
+    for model_id in registry.known_ids():
+        if not registry.is_onnx_model(model_id):
+            ready.append(model_id)
+        elif is_downloaded(settings, model_id, registry.onnx_config(model_id)):  # pyright: ignore[reportArgumentType]
+            ready.append(model_id)
+    return ready
 
 
 def _shorten(text: str, width: int = 60) -> str:
@@ -126,7 +155,6 @@ def compare(
     """
     from embedforge.comparison import compare_models
     from embedforge.config import get_settings
-    from embedforge.engine import registry
 
     documents = list(text or [])
     if file is not None:
@@ -141,7 +169,10 @@ def compare(
         )
         raise typer.Exit(1)
 
-    model_ids = list(models) if models else registry.known_ids()
+    model_ids = list(models) if models else _usable_models(get_settings())
+    if not model_ids:
+        err_console.print("[red]No models available.[/red] Download one first.")
+        raise typer.Exit(1)
     queries = list(query or [])
 
     result = compare_models(get_settings(), model_ids, documents, queries, rounds=rounds)
@@ -278,3 +309,120 @@ def _print_json(result: "ComparisonResult", top_k: int) -> None:
         },
     }
     console.print_json(json.dumps(payload))
+
+
+@app.command("download")
+def download(
+    model_id: Annotated[str, typer.Argument(help="Model id, as shown by 'model list'.")],
+    force: Annotated[
+        bool, typer.Option("--force", help="Re-fetch even if the files are already present.")
+    ] = False,
+) -> None:
+    """Fetch a model's files and record their digests.
+
+    Files are pinned to a commit sha, so this is reproducible: the same command gives
+    the same bytes tomorrow.
+    """
+    from embedforge.config import get_settings
+    from embedforge.engine import registry
+    from embedforge.engine.download import download_model, is_downloaded
+    from embedforge.engine.onnx_backend import model_directory
+    from embedforge.errors import InvalidRequestError
+
+    settings = get_settings()
+    try:
+        config = registry.onnx_config(model_id)
+    except InvalidRequestError as error:
+        err_console.print(f"[red]{error.message}[/red]")
+        raise typer.Exit(1) from None
+
+    spec = registry.get_spec(model_id)
+    if not force and is_downloaded(settings, model_id, config):
+        console.print(
+            f"[green]{model_id}[/green] is already downloaded. Use --force to fetch it again."
+        )
+        raise typer.Exit(0)
+
+    console.print(
+        f"Downloading [cyan]{model_id}[/cyan] from {config.repo_id}"
+        f" ({spec.info.size_mb:,} MB) at revision {config.revision[:12]}"
+    )
+    try:
+        manifest = download_model(settings, model_id, config, force=force)
+    except Exception as error:
+        err_console.print(f"[red]Download failed:[/red] {error}")
+        raise typer.Exit(1) from None
+
+    total = sum(record.size for record in manifest.files.values())
+    console.print(
+        f"[green]Downloaded[/green] {len(manifest.files)} files "
+        f"({total / 1e6:,.0f} MB) to {model_directory(settings, model_id)}"
+    )
+    console.print(f"Serve it with: EMBEDFORGE_MODEL_ID={model_id} embedforge serve")
+
+
+@app.command("verify")
+def verify(
+    model_id: Annotated[str, typer.Argument(help="Model id, as shown by 'model list'.")],
+    quick: Annotated[
+        bool, typer.Option("--quick", help="Check presence and size only, skipping hashes.")
+    ] = False,
+) -> None:
+    """Check a model's files against the digests recorded when it was downloaded.
+
+    This is what distinguishes a complete model from a truncated download, which
+    otherwise fails much later and much less clearly.
+    """
+    from embedforge.config import get_settings
+    from embedforge.engine import registry
+    from embedforge.engine.download import verify_model
+    from embedforge.errors import InvalidRequestError
+
+    try:
+        config = registry.onnx_config(model_id)
+    except InvalidRequestError as error:
+        err_console.print(f"[red]{error.message}[/red]")
+        raise typer.Exit(1) from None
+
+    report = verify_model(get_settings(), model_id, config, deep=not quick)
+    styles = {"ok": "green", "missing": "red", "corrupt": "red", "unverified": "yellow"}
+    console.print(f"[bold]{model_id}[/bold]  {report.directory}")
+    for check in report.checks:
+        style = styles[check.status.value]
+        detail = f"  [dim]{check.detail}[/dim]" if check.detail else ""
+        console.print(f"  [{style}]{check.status.value:<10}[/{style}] {check.name}{detail}")
+
+    if not report.has_manifest:
+        console.print(
+            "[yellow]No manifest.[/yellow] Re-download to record digests: "
+            f"embedforge model download {model_id} --force"
+        )
+    if report.ok:
+        console.print("[green]All files verified.[/green]")
+    else:
+        err_console.print(
+            f"[red]{len(report.problems)} problem(s).[/red] Fix with: "
+            f"embedforge model download {model_id} --force"
+        )
+        raise typer.Exit(1)
+
+
+@app.command("remove")
+def remove(
+    model_id: Annotated[str, typer.Argument(help="Model id, as shown by 'model list'.")],
+    yes: Annotated[bool, typer.Option("--yes", "-y", help="Skip the confirmation.")] = False,
+) -> None:
+    """Delete a model's downloaded files."""
+    from embedforge.config import get_settings
+    from embedforge.engine.download import remove_model
+    from embedforge.engine.onnx_backend import model_directory
+
+    settings = get_settings()
+    directory = model_directory(settings, model_id)
+    if not directory.exists():
+        console.print(f"{model_id} is not downloaded.")
+        raise typer.Exit(0)
+    if not yes:
+        typer.confirm(f"Delete {directory}?", abort=True)
+    remove_model(settings, model_id)
+    console.print(f"[green]Removed[/green] {directory}")
