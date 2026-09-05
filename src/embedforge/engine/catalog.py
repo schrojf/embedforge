@@ -19,6 +19,13 @@ from embedforge.engine.onnx_backend import OnnxModelConfig, OnnxTextBackend, Poo
 E5_QUERY_PREFIX = "query: "
 E5_DOCUMENT_PREFIX = "passage: "
 
+# Qwen3-Embedding takes a task description on the query side and nothing on the
+# document side. Note there is no space after "Query:" - that is what their own code
+# does, and the prompt is part of what the model was trained on.
+QWEN3_QUERY_PREFIX = (
+    "Instruct: Given a web search query, retrieve relevant passages that answer the query\nQuery:"
+)
+
 # The -instruct variant takes a task description on the query side only.
 E5_INSTRUCT_QUERY_PREFIX = (
     "Instruct: Given a web search query, retrieve relevant passages that answer the query\nQuery: "
@@ -78,6 +85,8 @@ CATALOG: list[tuple[ModelInfo, OnnxModelConfig]] = [
             cons=(
                 "Quantization costs some accuracy. Compare it against e5-small on your own "
                 "data before trusting it: embedforge model compare e5-small e5-small-int8",
+                "Not perfectly batch-stable (0.9972): the vector shifts slightly depending "
+                "on what shares its batch. The mildest case in this catalog, but real.",
                 "Quantization is tuned for AVX-512 VNNI; older CPUs still run it, but gain less.",
             ),
             license="MIT",
@@ -144,6 +153,8 @@ CATALOG: list[tuple[ModelInfo, OnnxModelConfig]] = [
             cons=(
                 "Quantization costs some accuracy; verify with "
                 "embedforge model compare e5-base e5-base-int8",
+                "Batch stability 0.9861: the same text embeds slightly differently "
+                "depending on its batch. Use e5-base where reproducibility matters.",
                 "Quantization is tuned for AVX-512 VNNI.",
             ),
             license="MIT",
@@ -367,6 +378,43 @@ CATALOG: list[tuple[ModelInfo, OnnxModelConfig]] = [
             max_seq_length=512,
             query_prefix=E5_QUERY_PREFIX,
             document_prefix=E5_DOCUMENT_PREFIX,
+        ),
+    ),
+    (
+        ModelInfo(
+            id="qwen3-0.6b",
+            name="Qwen/Qwen3-Embedding-0.6B",
+            dimension=1024,
+            max_input_tokens=32768,
+            symmetric=False,
+            description=(
+                "Decoder-style embedding model with a 32k context, instruction-tuned on "
+                "the query side. The 8B sibling topped the MTEB multilingual leaderboard."
+            ),
+            pros=(
+                "32k context, by far the longest here - whole documents, not chunks.",
+                "Perfectly batch-stable, unlike every quantized build in this catalog.",
+                "Apache-2.0, and a well-supported family.",
+            ),
+            cons=(
+                "70.53 on SkMTEB (Slovak) - below e5-base, which is less than half its "
+                "size. The global ranking does not transfer to Slovak.",
+                "2.4 GB and 28 decoder layers per call: really a GPU model.",
+                "No usable quantized build: the published int8 export changes retrieval "
+                "rankings depending on batch composition, so it is not in this catalog.",
+            ),
+            license="Apache-2.0",
+            size_mb=2411,
+        ),
+        OnnxModelConfig(
+            repo_id="onnx-community/Qwen3-Embedding-0.6B-ONNX",
+            revision="c25a394dd583836952667c12f008335071b3f43d",
+            onnx_file="onnx/model.onnx",
+            extra_files=("onnx/model.onnx_data",),
+            pooling=Pooling.LAST_TOKEN,
+            max_seq_length=32768,
+            query_prefix=QWEN3_QUERY_PREFIX,
+            document_prefix="",
         ),
     ),
 ]

@@ -29,6 +29,7 @@ from embedforge.engine.onnx_backend import (
     OnnxModelConfig,
     OnnxTextBackend,
     Pooling,
+    cache_specs,
     model_directory,
     pool,
 )
@@ -88,6 +89,16 @@ def test_prefix_and_adapter_are_not_both_used() -> None:
             assert config.document_prefix == "", info.id
 
 
+def test_decoder_models_use_last_token_pooling() -> None:
+    """Qwen3 is a decoder: its representation is the final token, not the first."""
+    config = registry.onnx_config("qwen3-0.6b")
+    assert config.pooling is Pooling.LAST_TOKEN
+    assert config.query_prefix.startswith("Instruct: ")
+    # Their own code writes "Query:" with no trailing space; the prompt is trained in.
+    assert config.query_prefix.endswith("Query:")
+    assert config.document_prefix == ""
+
+
 def test_task_ids_are_declared_in_pairs() -> None:
     for info, config in CATALOG:
         assert (config.query_task_id is None) == (config.document_task_id is None), info.id
@@ -142,6 +153,27 @@ def test_cls_pooling_takes_the_first_token() -> None:
     hidden = np.array([[[1.0, 2.0], [3.0, 4.0]]], dtype=np.float32)
     mask = np.array([[1, 1]], dtype=np.int64)
     assert np.allclose(pool(hidden, mask, Pooling.CLS), [[1.0, 2.0]])
+
+
+def test_last_token_pooling_uses_the_last_real_token() -> None:
+    """The trap: with right padding the final row of the tensor is a pad token.
+
+    Reading hidden_states[:, -1] would silently return padding for every sequence
+    shorter than the longest in its batch - that is, for exactly the short inputs.
+    """
+    hidden = np.array(
+        [[[1.0, 1.0], [3.0, 3.0], [99.0, 99.0]], [[5.0, 5.0], [7.0, 7.0], [9.0, 9.0]]],
+        dtype=np.float32,
+    )
+    mask = np.array([[1, 1, 0], [1, 1, 1]], dtype=np.int64)
+    assert np.allclose(pool(hidden, mask, Pooling.LAST_TOKEN), [[3.0, 3.0], [9.0, 9.0]])
+    assert not np.allclose(pool(hidden, mask, Pooling.LAST_TOKEN), hidden[:, -1])
+
+
+def test_last_token_pooling_survives_an_all_padding_row() -> None:
+    hidden = np.ones((1, 3, 2), dtype=np.float32)
+    mask = np.zeros((1, 3), dtype=np.int64)
+    assert np.isfinite(pool(hidden, mask, Pooling.LAST_TOKEN)).all()
 
 
 def test_mean_pooling_survives_an_all_padding_row() -> None:
@@ -334,6 +366,15 @@ def test_a_real_model_embeds_and_distinguishes_query_from_document() -> None:
 @dataclass
 class StubNode:
     name: str
+    shape: tuple[int | str, ...] = ()
+    type: str = "tensor(int64)"
+
+
+@dataclass
+class StubCacheNode:
+    name: str
+    shape: tuple[int | str, ...] = ("batch_size", 8, "past_sequence_length", 128)
+    type: str = "tensor(float)"
 
 
 class StubSession:
@@ -403,3 +444,48 @@ def test_prefixes_are_applied_per_task() -> None:
     assert backend._tokenizer.texts == ["query: ahoj"]  # pyright: ignore[reportPrivateUsage]
     backend.embed([TextInput("ahoj")], TaskType.DOCUMENT)
     assert backend._tokenizer.texts == ["passage: ahoj"]  # pyright: ignore[reportPrivateUsage]
+
+
+# ---- Decoder-style exports ----
+
+
+def test_position_ids_are_supplied_when_the_graph_declares_them() -> None:
+    backend = stub_backend(
+        registry.onnx_config("qwen3-0.6b"), ["input_ids", "attention_mask", "position_ids"]
+    )
+    backend.embed([TextInput("a"), TextInput("b")], TaskType.DOCUMENT)
+    feeds = backend._session.last_feeds  # pyright: ignore[reportPrivateUsage]
+    assert feeds["position_ids"].shape == feeds["input_ids"].shape
+    assert feeds["position_ids"][0].tolist() == [0, 1, 2]
+
+
+def test_an_empty_key_value_cache_is_built_for_decoder_exports() -> None:
+    """A cached decoder export declares one key/value input per layer.
+
+    We run a single forward pass and never generate, so each cache must be fed with a
+    zero-length past dimension - and the batch dimension has to follow the real batch.
+    """
+    names = ["input_ids", "attention_mask", "position_ids"]
+    cache_names = [
+        f"past_key_values.{layer}.{part}" for layer in range(2) for part in ("key", "value")
+    ]
+    backend = stub_backend(registry.onnx_config("qwen3-0.6b"), names + cache_names)
+    session = backend._session  # pyright: ignore[reportPrivateUsage]
+    session._inputs = [  # pyright: ignore[reportPrivateUsage]
+        StubNode(name) for name in names
+    ] + [StubCacheNode(name) for name in cache_names]
+    backend._cache_specs = cache_specs(session)  # pyright: ignore[reportPrivateUsage]
+    assert len(backend._cache_specs) == 4  # pyright: ignore[reportPrivateUsage]
+
+    backend.embed([TextInput("a"), TextInput("b")], TaskType.DOCUMENT)
+    feeds = session.last_feeds
+    for name in cache_names:
+        assert feeds[name].shape == (2, 8, 0, 128), name
+        assert feeds[name].dtype == np.float32
+
+
+def test_models_without_a_cache_get_no_cache_inputs() -> None:
+    backend = stub_backend(registry.onnx_config("e5-base"), ["input_ids", "attention_mask"])
+    backend.embed([TextInput("a")], TaskType.DOCUMENT)
+    feeds = backend._session.last_feeds  # pyright: ignore[reportPrivateUsage]
+    assert not any(name.startswith("past_key_values") for name in feeds)

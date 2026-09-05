@@ -93,7 +93,7 @@ download size in RAM plus a few hundred megabytes:
 | `e5-small-int8` | 135 MB | 512 MB |
 | `e5-base` | 1.1 GB | 2 GB |
 | `e5-sk-large` | 1.5 GB | 2 GB |
-| `e5-large-instruct`, `bge-m3`, `jina-v3` | 2.3 GB | 4 GB |
+| `e5-large-instruct`, `bge-m3`, `jina-v3`, `qwen3-0.6b` | 2.3-2.4 GB | 4 GB |
 
 Model files are re-downloadable, so they do not need backing up — unlike the token file.
 

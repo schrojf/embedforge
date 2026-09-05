@@ -205,7 +205,12 @@ def _print_report(result: "ComparisonResult", top_k: int) -> None:
     table.add_column("Load", justify="right")
     table.add_column("ms/item", justify="right")
     table.add_column("items/s", justify="right")
+    table.add_column("Batch-stable", justify="right")
+    unstable = False
     for run in result.runs:
+        stable = run.batch_stability > 0.999
+        unstable = unstable or not stable
+        colour = "green" if stable else "red"
         table.add_row(
             run.model_id,
             str(run.dimension),
@@ -213,8 +218,16 @@ def _print_report(result: "ComparisonResult", top_k: int) -> None:
             f"{run.load_seconds:.2f}s",
             f"{run.ms_per_item:.2f}",
             f"{run.items_per_second:,.0f}",
+            f"[{colour}]{run.batch_stability:.4f}[/{colour}]",
         )
     console.print(table)
+    if unstable:
+        console.print(
+            "[yellow]Batch-stable below 1.0 means the vector depends on what else shared "
+            "its batch.[/yellow] This server batches concurrent requests, so the same text "
+            "will not always embed identically. Quantized models do this; prefer the "
+            "full-precision build where it matters."
+        )
 
     if result.queries:
         for index, text in enumerate(result.queries):
@@ -289,6 +302,7 @@ def _print_json(result: "ComparisonResult", top_k: int) -> None:
                 "dimension": run.dimension,
                 "symmetric": run.symmetric,
                 "load_seconds": round(run.load_seconds, 4),
+                "batch_stability": round(run.batch_stability, 6),
                 "ms_per_item": round(run.ms_per_item, 4),
                 "items_per_second": round(run.items_per_second, 2),
                 "rankings": [

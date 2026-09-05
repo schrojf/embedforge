@@ -118,7 +118,12 @@ rank-agreement matrix across models. **Without queries** you get each model's
 document-to-document similarity instead, which is useful for checking whether a model
 separates things you consider different.
 
-The report also shows load time and milliseconds per item. On a CPU server that is
+The report also shows **batch stability**: the cosine between one text embedded alone
+and embedded inside the batch. Anything below 1.0 means the vector depends on what else
+shared its batch, which quantized models do — see
+[models.md](models.md#quantized-models-are-not-batch-stable).
+
+It also shows load time and milliseconds per item. On a CPU server that is
 often the deciding number, so it belongs next to the quality signal rather than in a
 separate tool.
 

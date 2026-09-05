@@ -79,6 +79,15 @@ class ModelRun:
     document_vectors: np.ndarray
     query_vectors: np.ndarray
 
+    batch_stability: float = 1.0
+    """Cosine between one document embedded alone and embedded inside the batch.
+
+    This server batches requests together, so a model whose output depends on what
+    else shares its batch produces vectors that cannot be reproduced or compared.
+    Dynamically quantized models are the ones that fail this: their activation scales
+    are computed per tensor over whatever happens to be in the batch.
+    """
+
     @property
     def ms_per_item(self) -> float:
         return (self.embed_seconds / self.item_count * 1000) if self.item_count else 0.0
@@ -179,6 +188,10 @@ def compare_models(
                     query_vectors = backend.embed(query_inputs, TaskType.QUERY)
                 durations.append(time.perf_counter() - started)
 
+            # Same text, batch of one: a model that batches cleanly gives the same vector.
+            alone = backend.embed(document_inputs[:1], TaskType.DOCUMENT)
+            stability = float(cosine_similarity(alone, document_vectors[:1])[0][0])
+
             runs.append(
                 ModelRun(
                     model_id=model_id,
@@ -190,6 +203,7 @@ def compare_models(
                     item_count=len(documents) + len(queries),
                     document_vectors=document_vectors,
                     query_vectors=query_vectors,
+                    batch_stability=stability,
                 )
             )
         finally:

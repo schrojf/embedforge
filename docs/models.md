@@ -25,6 +25,7 @@ pinned to a specific commit so downloads are reproducible.
 | `jina-v3` | 1024 | **8192** | no | 2.3 GB | 75.10 |
 | `e5-sk-large` | 1024 | 512 | no | 1.5 GB (exported) | 74.70 |
 | `bge-m3` | 1024 | **8192** | yes | 2.3 GB | 74.43 |
+| `qwen3-0.6b` | 1024 | **32768** | no | 2.4 GB | 70.53 |
 | `gte-base` | 768 | **8192** | yes | 1.3 GB | 71.76 |
 | `gte-base-int8` | 768 | **8192** | yes | 357 MB | 71.76 (before quantization) |
 | `dev-hash` | 384 | — | yes | none | not a real model |
@@ -62,7 +63,7 @@ specifically, and its ranking is quite different. Three findings shaped this cat
 Treat all of this as a starting point. Benchmarks describe someone else's data;
 `embedforge model compare` exists so you can settle it on yours.
 
-For everything else that was evaluated and left out — Gemini, Qwen3, Jina v4, Nomic —
+For everything else that was evaluated and left out — Gemini, Jina v4, Nomic —
 see [models considered but not shipped](#models-considered-but-not-shipped).
 
 ## Choosing
@@ -76,6 +77,7 @@ CPU. Then move only if something pushes you:
 | Retrieval quality matters most | `e5-large-instruct` — the best open Slovak score. |
 | Your traffic is almost all Slovak | `e5-sk-large` — nearly the same quality at two-thirds the size. |
 | Documents exceed 512 tokens | `bge-m3` (symmetric, simplest) or `gte-base-int8` (cheapest). |
+| Documents exceed 8192 tokens | `qwen3-0.6b` — 32k context, the only option here. |
 | You want e5-base but smaller | `e5-base-int8` — compare it first; quantization is not free. |
 
 ### What this actually costs
@@ -87,6 +89,7 @@ number for your hardware:
 | --- | --- | --- | --- |
 | `e5-small-int8` | 0.8s | 4.9 | 205 |
 | `e5-sk-large` | 3.1s | 44 | 23 |
+| `qwen3-0.6b` | 2.9s | 180 | 6 |
 | `jina-v3` | 1.0s | 331 | 3 |
 
 **`jina-v3` is 68x slower than `e5-small-int8` on CPU.** Its benchmark scores are real,
@@ -113,6 +116,36 @@ embedforge model compare e5-base e5-base-int8 -q "your real query" -f your-corpu
 
 If the ranking agreement is near 1.0 on your queries, take the quantized one.
 
+### Quantized models are not batch-stable
+
+A quantized model's output depends on **what else was in its batch**. Dynamic
+quantization computes activation scales per tensor from the data actually present, so
+the same text embedded alone and embedded alongside other texts comes out slightly
+different. This server batches concurrent requests by design, which means a quantized
+model does not embed a document reproducibly.
+
+Measured here, as the cosine between one text embedded alone and inside a batch:
+
+| Model | Batch stability |
+| --- | --- |
+| every full-precision model | 1.0000 |
+| `e5-small-int8` | 0.9972 |
+| `e5-base-int8` | 0.9861 |
+| `gte-base-int8` | 0.9783 |
+| Qwen3-Embedding-0.6B int8 *(not shipped)* | 0.8646 |
+
+`embedforge model compare` reports this per model, so you can check it on your own
+hardware — the numbers depend on the CPU as well as the model.
+
+How much it matters depends on your margins. At 0.997 the wobble is far smaller than
+the gap between a relevant and an irrelevant result, and nothing changes. At 0.86 it
+demonstrably reorders results: that is why the published int8 build of Qwen3 is not in
+the catalog even though the model itself is.
+
+What it does mean in every case: **re-embedding a document does not reproduce its stored
+vector exactly**. If you need vectors that are bit-stable across runs — for caching,
+deduplication, or an index you rebuild incrementally — use a full-precision model.
+
 ## Models considered but not shipped
 
 The catalog is a short list drawn from a much longer one. This section records what else
@@ -133,7 +166,6 @@ Four rules decide inclusion:
 | text-embedding-3-large | API | 75.07 | Not self-hostable. |
 | [snowflake-arctic-embed-l-v2.0](https://huggingface.co/Snowflake/snowflake-arctic-embed-l-v2.0) | 568M | 72.54 | Beaten by e5-large-instruct at the same size. |
 | [jina-embeddings-v4](https://huggingface.co/jinaai/jina-embeddings-v4) | 3.8B | 72.44 | Far too large for CPU; restrictive licence. |
-| [Qwen3-Embedding-0.6B](https://huggingface.co/Qwen/Qwen3-Embedding-0.6B) | 596M | 70.53 | Beaten by e5-base at half the size; no stable ONNX export. |
 | [embeddinggemma-300m](https://huggingface.co/google/embeddinggemma-300m) | 308M | 69.25 | Last of the realistic candidates on Slovak. |
 | [nomic-embed-text-v2-moe](https://huggingface.co/nomic-ai/nomic-embed-text-v2-moe) | 475M (305M active) | not evaluated | No Slovak evidence; MoE routing is awkward in ONNX. |
 
@@ -149,21 +181,17 @@ The comparison worth making: it beats `e5-large-instruct` on Slovak by **0.26 po
 That is the entire quality argument for giving up self-hosting. OpenAI's
 `text-embedding-3-large` (75.07) is behind `e5-large-instruct` outright.
 
-### Qwen3-Embedding
+### Qwen3-Embedding 4B and 8B
 
-Apache-2.0, 32k context, dimensions selectable from 32 to 1024, instruction-aware, and
-the 8B variant was ranked first on the MTEB multilingual leaderboard. It looks like an
-obvious pick and is not one:
+The 0.6B is [in the catalog](#the-catalog) as `qwen3-0.6b`. Its larger siblings are not:
+the 8B variant was ranked first on the MTEB multilingual leaderboard, but neither is a
+CPU model, and the whole point of this deployment is not needing a GPU.
 
-- **The 0.6B scores 70.53 on Slovak** — below `e5-base`, which is less than half its
-  size. The global ranking does not transfer.
-- **The 4B and 8B are not CPU models.** They would need a GPU, which is exactly the
-  dependency this deployment avoids.
-- **No official ONNX export**, and Qwen3-architecture export was not supported in the
-  stable `optimum` release at the time of writing. That is an integration risk, not just
-  a missing file.
-
-Worth revisiting if you move to GPU and the export path stabilizes.
+Worth knowing about the 0.6B before you choose it: it scores **70.53 on Slovak, below
+`e5-base` at less than half the size**, so the global ranking does not transfer. Its
+argument is the 32k context and clean Apache-2.0 licence, not raw Slovak quality. Its
+published int8 build is excluded — see
+[quantized models are not batch-stable](#quantized-models-are-not-batch-stable).
 
 ### jina-embeddings-v4 — the multimodal one
 
@@ -350,6 +378,11 @@ For another ONNX text model, add an entry to `CATALOG` in
     ),
 ),
 ```
+
+Decoder-style models (Qwen3 and most newer embedding models) use `Pooling.LAST_TOKEN`
+and export with a key/value cache: the backend detects the cache inputs and feeds them
+empty, and supplies `position_ids`, so no extra work is needed beyond declaring the
+pooling.
 
 For a model that selects its task with an adapter rather than a prefix, set
 `query_task_id` and `document_task_id` instead of the prefixes. For one that publishes

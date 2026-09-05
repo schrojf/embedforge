@@ -39,6 +39,13 @@ class Pooling(StrEnum):
     CLS = "cls"
     """The first token's vector. What BGE and GTE were trained with."""
 
+    LAST_TOKEN = "last_token"
+    """The final real token's vector. What decoder-style models such as Qwen3 use.
+
+    "Final real" matters: with right padding the last row of the tensor is a pad
+    token, so the index has to come from the attention mask.
+    """
+
 
 @dataclass(frozen=True, slots=True)
 class OnnxModelConfig:
@@ -115,12 +122,39 @@ def pool(hidden_states: np.ndarray, attention_mask: np.ndarray, pooling: Pooling
     """Reduce `(batch, tokens, hidden)` to `(batch, hidden)`."""
     if pooling is Pooling.CLS:
         return hidden_states[:, 0].astype(np.float32, copy=False)
+    if pooling is Pooling.LAST_TOKEN:
+        # Index the last unmasked position per row. Taking hidden_states[:, -1] would
+        # read padding for every sequence shorter than the longest in the batch, which
+        # silently produces garbage for exactly the short inputs.
+        lengths = attention_mask.sum(axis=1) - 1
+        lengths = np.maximum(lengths, 0)
+        rows = np.arange(hidden_states.shape[0])
+        return hidden_states[rows, lengths].astype(np.float32, copy=False)
     weights = attention_mask[..., None].astype(np.float32)
     summed = (hidden_states.astype(np.float32, copy=False) * weights).sum(axis=1)
     # Padding tokens must not dilute the average, and an all-padding row must not divide
     # by zero.
     counts = np.maximum(weights.sum(axis=1), 1e-9)
     return summed / counts
+
+
+_CACHE_PREFIX = "past_key_values"
+
+_ONNX_DTYPES: dict[str, str] = {
+    "tensor(float)": "float32",
+    "tensor(float16)": "float16",
+    "tensor(bfloat16)": "float32",
+}
+
+
+def cache_specs(session: Any) -> list[tuple[str, tuple[int | str, ...], np.dtype[Any]]]:
+    """Describe the empty key/value cache a decoder-style export expects."""
+    specs: list[tuple[str, tuple[int | str, ...], np.dtype[Any]]] = []
+    for node in session.get_inputs():
+        if node.name.startswith(_CACHE_PREFIX):
+            dtype = np.dtype(_ONNX_DTYPES.get(node.type, "float32"))
+            specs.append((node.name, tuple(node.shape), dtype))
+    return specs
 
 
 def _resolve_padding(tokenizer: "Tokenizer") -> tuple[int, str]:
@@ -144,6 +178,7 @@ class OnnxTextBackend(EmbeddingBackend):
         self._session: Any = None
         self._tokenizer: Any = None
         self._input_names: frozenset[str] = frozenset()
+        self._cache_specs: list[tuple[str, tuple[int | str, ...], np.dtype[Any]]] = []
 
     # ---- Lifecycle ----
 
@@ -189,13 +224,15 @@ class OnnxTextBackend(EmbeddingBackend):
         providers = self._providers()
         self._session = ort.InferenceSession(str(graph_path), options, providers=providers)
         self._input_names = frozenset(node.name for node in self._session.get_inputs())
+        self._cache_specs = cache_specs(self._session)
 
         log.info(
             "onnx_model_loaded",
             model=self.info.id,
             providers=providers,
             intra_op_threads=self._threads,
-            inputs=sorted(self._input_names),
+            inputs=sorted(name for name in self._input_names if not name.startswith(_CACHE_PREFIX)),
+            cache_inputs=len(self._cache_specs),
             path=str(graph_path),
         )
 
@@ -211,15 +248,26 @@ class OnnxTextBackend(EmbeddingBackend):
         attention_mask = np.asarray(
             [encoding.attention_mask for encoding in encodings], dtype=np.int64
         )
+        batch, length = len(encodings), int(input_ids.shape[-1])
         candidates = {
             "input_ids": input_ids,
             "attention_mask": attention_mask,
             # Single-segment input, so all zeros. Only some exports declare it.
             "token_type_ids": np.zeros_like(input_ids),
+            # Decoder-style exports want explicit positions. Padding is on the right and
+            # masked out, so a plain range is correct for every real token.
+            "position_ids": np.tile(np.arange(length, dtype=np.int64), (batch, 1)),
         }
-        return {
-            name: value for name, value in candidates.items() if name in self._input_names
-        }, attention_mask
+        feeds = {name: value for name, value in candidates.items() if name in self._input_names}
+        # A cached decoder export declares one key/value input per layer. We do a single
+        # forward pass and never generate, so every cache starts empty.
+        for name, shape, dtype in self._cache_specs:
+            dimensions = tuple(
+                batch if index == 0 else (0 if isinstance(size, str) else size)
+                for index, size in enumerate(shape)
+            )
+            feeds[name] = np.zeros(dimensions, dtype=dtype)
+        return feeds, attention_mask
 
     def embed(self, inputs: Sequence[EmbedInput], task: TaskType) -> np.ndarray:
         if self._session is None or self._tokenizer is None:
