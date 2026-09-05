@@ -43,8 +43,13 @@ def list_models() -> None:
     for spec in registry.list_specs():
         info = spec.info
         if registry.is_onnx_model(info.id):
-            ready = is_downloaded(settings, info.id, registry.onnx_config(info.id))
-            status = "[green]ready[/green]" if ready else "[yellow]not downloaded[/yellow]"
+            config = registry.onnx_config(info.id)
+            if is_downloaded(settings, info.id, config):
+                status = "[green]ready[/green]"
+            elif config.needs_export:
+                status = "[yellow]needs export[/yellow]"
+            else:
+                status = "[yellow]not downloaded[/yellow]"
         else:
             status = "[green]built in[/green]"
         marker = " [green]*[/green]" if info.id == active else ""
@@ -343,10 +348,20 @@ def download(
         )
         raise typer.Exit(0)
 
-    console.print(
-        f"Downloading [cyan]{model_id}[/cyan] from {config.repo_id}"
-        f" ({spec.info.size_mb:,} MB) at revision {config.revision[:12]}"
-    )
+    if config.needs_export:
+        console.print(
+            f"[cyan]{model_id}[/cyan] publishes no ONNX build, so one is exported locally "
+            f"from {config.export_from} at revision {config.revision[:12]}."
+        )
+        console.print(
+            "[dim]This downloads the source model and runs the exporter through uvx: "
+            "several minutes, and roughly twice the final size in disk while it runs.[/dim]"
+        )
+    else:
+        console.print(
+            f"Downloading [cyan]{model_id}[/cyan] from {config.repo_id}"
+            f" ({spec.info.size_mb:,} MB) at revision {config.revision[:12]}"
+        )
     try:
         manifest = download_model(settings, model_id, config, force=force)
     except Exception as error:
@@ -354,8 +369,9 @@ def download(
         raise typer.Exit(1) from None
 
     total = sum(record.size for record in manifest.files.values())
+    verb = "Exported" if config.needs_export else "Downloaded"
     console.print(
-        f"[green]Downloaded[/green] {len(manifest.files)} files "
+        f"[green]{verb}[/green] {len(manifest.files)} files "
         f"({total / 1e6:,.0f} MB) to {model_directory(settings, model_id)}"
     )
     console.print(f"Serve it with: EMBEDFORGE_MODEL_ID={model_id} embedforge serve")

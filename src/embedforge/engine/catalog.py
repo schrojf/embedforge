@@ -286,6 +286,89 @@ CATALOG: list[tuple[ModelInfo, OnnxModelConfig]] = [
             max_seq_length=8192,
         ),
     ),
+    (
+        ModelInfo(
+            id="jina-v3",
+            name="jinaai/jina-embeddings-v3",
+            dimension=1024,
+            max_input_tokens=8192,
+            symmetric=False,
+            description=(
+                "572M parameters, 8192-token context, and the second-best Slovak score "
+                "of any open model. Selects its task with a LoRA adapter rather than a "
+                "text prefix."
+            ),
+            pros=(
+                "75.10 on SkMTEB (Slovak), ahead of bge-m3 and behind only "
+                "e5-large-instruct among open models.",
+                "Best on semantic similarity in that study (89.82), from an explicit "
+                "similarity-training objective.",
+                "Long context and strong retrieval in one model.",
+            ),
+            cons=(
+                "CC-BY-NC-4.0: non-commercial only. Fine for private use, a licence trap "
+                "if this ever becomes a product.",
+                "2.3 GB download and slow on CPU.",
+                "Task selection happens inside the graph, so one batch means one task - "
+                "which the engine already guarantees.",
+            ),
+            license="CC-BY-NC-4.0",
+            size_mb=2310,
+        ),
+        OnnxModelConfig(
+            repo_id="jinaai/jina-embeddings-v3",
+            revision="ab036b023d30b4d1138c4c3bfa9f0c445ab455d6",
+            onnx_file="onnx/model.onnx",
+            extra_files=("onnx/model.onnx_data",),
+            pooling=Pooling.MEAN,
+            max_seq_length=8192,
+            # Indices into the model's `lora_adaptations`: retrieval.query and
+            # retrieval.passage. The adapter replaces the text prefix entirely, so
+            # prepending an instruction as well would corrupt the input.
+            query_task_id=0,
+            document_task_id=1,
+        ),
+    ),
+    (
+        ModelInfo(
+            id="e5-sk-large",
+            name="slovak-nlp/e5-sk-large",
+            dimension=1024,
+            max_input_tokens=512,
+            symmetric=False,
+            description=(
+                "multilingual-e5-large with its vocabulary trimmed from 250k to 60k "
+                "tokens for Slovak: 35% smaller at 365M parameters, and better on Slovak "
+                "than models half a gigabyte larger."
+            ),
+            pros=(
+                "74.70 on SkMTEB, beating bge-m3 (568M) at two-thirds the size and "
+                "roughly matching OpenAI's text-embedding-3-large.",
+                "The best size-to-quality trade here for Slovak-dominant traffic.",
+                "MIT licensed, from the authors of the Slovak benchmark itself.",
+            ),
+            cons=(
+                "No published ONNX build, so the first download exports one locally: "
+                "several minutes, uv required, and about 3 GB of disk while it runs.",
+                "The trimmed vocabulary is the point and the cost - other languages "
+                "degrade. Use the plain E5 models for mixed-language corpora.",
+                "512-token limit.",
+            ),
+            license="MIT",
+            size_mb=1462,
+        ),
+        OnnxModelConfig(
+            repo_id="slovak-nlp/e5-sk-large",
+            revision="1e67c6dd72ed42620055e168abe88ca49ba7b7da",
+            export_from="slovak-nlp/e5-sk-large",
+            # optimum writes the export flat, unlike the nested layout of a published build.
+            onnx_file="model.onnx",
+            pooling=Pooling.MEAN,
+            max_seq_length=512,
+            query_prefix=E5_QUERY_PREFIX,
+            document_prefix=E5_DOCUMENT_PREFIX,
+        ),
+    ),
 ]
 
 ONNX_CONFIGS: dict[str, OnnxModelConfig] = {info.id: config for info, config in CATALOG}

@@ -22,10 +22,19 @@ pinned to a specific commit so downloads are reproducible.
 | `e5-base-int8` | 768 | 512 | no | 296 MB | 72.39 (before quantization) |
 | `e5-base` | 768 | 512 | no | 1.1 GB | 72.39 |
 | `e5-large-instruct` | 1024 | 512 | no | 2.3 GB | **77.49** |
+| `jina-v3` | 1024 | **8192** | no | 2.3 GB | 75.10 |
+| `e5-sk-large` | 1024 | 512 | no | 1.5 GB (exported) | 74.70 |
 | `bge-m3` | 1024 | **8192** | yes | 2.3 GB | 74.43 |
 | `gte-base` | 768 | **8192** | yes | 1.3 GB | 71.76 |
 | `gte-base-int8` | 768 | **8192** | yes | 357 MB | 71.76 (before quantization) |
 | `dev-hash` | 384 | — | yes | none | not a real model |
+
+Two entries need a note before you pick them:
+
+- **`jina-v3` is CC-BY-NC-4.0** — non-commercial only. Fine for private use; a licence
+  trap if this ever becomes a product.
+- **`e5-sk-large` publishes no ONNX build**, so the first download exports one locally.
+  See [locally exported models](#locally-exported-models).
 
 `dev-hash` is the default so the server starts with no downloads. It produces
 deterministic but **meaningless** vectors: use it for smoke tests and CI, never for
@@ -53,9 +62,8 @@ specifically, and its ranking is quite different. Three findings shaped this cat
 Treat all of this as a starting point. Benchmarks describe someone else's data;
 `embedforge model compare` exists so you can settle it on yours.
 
-For everything else that was evaluated and left out — Gemini, Qwen3, Jina, Nomic, and a
-Slovak-adapted E5 that is arguably the best size-to-quality trade available — see
-[models considered but not shipped](#models-considered-but-not-shipped).
+For everything else that was evaluated and left out — Gemini, Qwen3, Jina v4, Nomic —
+see [models considered but not shipped](#models-considered-but-not-shipped).
 
 ## Choosing
 
@@ -65,9 +73,27 @@ CPU. Then move only if something pushes you:
 | If | Then |
 | --- | --- |
 | Latency or memory is tight | `e5-small-int8` — 135 MB, the fastest real model here. |
-| Retrieval quality matters most | `e5-large-instruct` — the best open Slovak score, at 2.3 GB and the slowest inference. |
-| Documents exceed 512 tokens | `bge-m3` (best quality) or `gte-base-int8` (cheapest long context). |
+| Retrieval quality matters most | `e5-large-instruct` — the best open Slovak score. |
+| Your traffic is almost all Slovak | `e5-sk-large` — nearly the same quality at two-thirds the size. |
+| Documents exceed 512 tokens | `bge-m3` (symmetric, simplest) or `gte-base-int8` (cheapest). |
 | You want e5-base but smaller | `e5-base-int8` — compare it first; quantization is not free. |
+
+### What this actually costs
+
+Measured on one 8-core CPU, single item per call, so treat it as a ratio rather than a
+number for your hardware:
+
+| Model | Load | ms/item | items/s |
+| --- | --- | --- | --- |
+| `e5-small-int8` | 0.8s | 4.9 | 205 |
+| `e5-sk-large` | 3.1s | 44 | 23 |
+| `jina-v3` | 1.0s | 331 | 3 |
+
+**`jina-v3` is 68x slower than `e5-small-int8` on CPU.** Its benchmark scores are real,
+and so is that number: an 8192-token context model with 572M parameters is not a CPU
+model in any practical sense. Batch throughput is better than these per-item figures
+suggest (see [performance.md](performance.md)), but the ratio holds. If you want
+`jina-v3`, plan for a GPU.
 
 Dimension is a running cost, not just a download: 1024-dimensional vectors cost roughly
 2.7× what 384-dimensional ones cost to store and search. That difference usually
@@ -104,9 +130,7 @@ Four rules decide inclusion:
 | Model | Size | Slovak (SkMTEB) | Why not |
 | --- | --- | --- | --- |
 | [gemini-embedding-001](https://ai.google.dev/gemini-api/docs/embeddings) | API | 77.23 | Not self-hostable. |
-| [jina-embeddings-v3](https://huggingface.co/jinaai/jina-embeddings-v3) | 572M | **75.10** | Non-commercial licence, LoRA adapters. **A genuine candidate — see below.** |
 | text-embedding-3-large | API | 75.07 | Not self-hostable. |
-| [e5-sk-large](https://huggingface.co/slovak-nlp/e5-sk-large) | 365M | **74.70** | No ONNX export published. **Also a genuine candidate.** |
 | [snowflake-arctic-embed-l-v2.0](https://huggingface.co/Snowflake/snowflake-arctic-embed-l-v2.0) | 568M | 72.54 | Beaten by e5-large-instruct at the same size. |
 | [jina-embeddings-v4](https://huggingface.co/jinaai/jina-embeddings-v4) | 3.8B | 72.44 | Far too large for CPU; restrictive licence. |
 | [Qwen3-Embedding-0.6B](https://huggingface.co/Qwen/Qwen3-Embedding-0.6B) | 596M | 70.53 | Beaten by e5-base at half the size; no stable ONNX export. |
@@ -124,42 +148,6 @@ when you are offline or they deprecate the endpoint.
 The comparison worth making: it beats `e5-large-instruct` on Slovak by **0.26 points**.
 That is the entire quality argument for giving up self-hosting. OpenAI's
 `text-embedding-3-large` (75.07) is behind `e5-large-instruct` outright.
-
-### jina-embeddings-v3 — the closest call
-
-572M parameters, 75.10 on Slovak (second-best open model in the study, ahead of
-`bge-m3`), **and it ships an ONNX export**. It also leads SkMTEB's semantic-similarity
-tasks outright at 89.82, which reflects its explicit similarity-training objective.
-
-Two things kept it out, neither of them fatal:
-
-- **Licence: CC-BY-NC-4.0.** Non-commercial. For your private, personal use that is
-  fine; it would not be for anything commercial, and a catalog entry that is a licence
-  trap for future use is worth flagging rather than quietly shipping.
-- **Task-specific LoRA adapters.** Its quality depends on selecting an adapter per task
-  (retrieval query, retrieval passage, similarity, classification). That is an extra
-  ONNX input and a chunk of task-routing logic, not a drop-in for the shared
-  `OnnxTextBackend`.
-
-**If you want the best Slovak retrieval you can self-host and you accept the licence,
-this is the model to add next.** Ask, and it is maybe an hour of work.
-
-### e5-sk-large — the interesting one
-
-This is the SkMTEB authors' own contribution: `multilingual-e5-large` with its
-vocabulary trimmed from 250k to 60k tokens, cutting the model by 35% to 365M parameters
-while scoring **74.70** — better than `bge-m3` (568M) at two-thirds the size, and
-roughly matching OpenAI's `text-embedding-3-large`. MIT licensed. There is a matching
-`e5-sk-small`.
-
-The trick is that a multilingual vocabulary spends most of its embedding table on
-languages you will never send. Drop them and you keep the quality while losing the
-weight.
-
-It is not in the catalog only because no ONNX export is published, so we would have to
-export it ourselves — which also means we own its correctness. That is very doable
-(`optimum-cli export onnx`), just not something to do silently. **If your traffic is
-mostly Slovak, this is the best size-to-quality trade in the whole study.**
 
 ### Qwen3-Embedding
 
@@ -277,6 +265,12 @@ both endpoints return identical vectors.
 Every response reports `"symmetric": true|false`. Use the endpoint that matches your
 intent regardless, so switching between the two kinds stays a configuration change.
 
+`jina-v3` does the same thing by a different mechanism: instead of a text prefix it
+carries a LoRA adapter per task, selected by a `task_id` input to the graph. The effect
+is the same — queries and documents get different vectors — but sending a prefix *as
+well* would corrupt the input, so its prefixes are deliberately empty. A test enforces
+that a model uses one mechanism or the other, never both.
+
 These prefixes are part of each model's definition rather than something callers pass.
 Getting them wrong does not raise an error — it silently produces vectors that look
 normal and retrieve badly, which is the worst kind of bug to have in a search system.
@@ -299,6 +293,26 @@ Downloads record a `manifest.json` of sha256 digests next to the files. `verify`
 against it, which is what distinguishes a complete model from a truncated download —
 otherwise the failure surfaces much later and much less clearly, as a corrupt-graph
 error at startup.
+
+### Locally exported models
+
+`e5-sk-large` publishes weights but no ONNX build, so `model download` produces one:
+
+```bash
+embedforge model download e5-sk-large
+```
+
+It fetches the source repository at its pinned revision, then runs the exporter through
+`uvx` in a throwaway environment — so PyTorch, which is larger than this entire project
+and needed exactly once, never becomes a dependency of the server or of CI.
+
+What to expect: a few minutes, `uv` on the machine, and roughly twice the final size in
+disk while it runs (the source copy is deleted afterwards). The result is byte-for-byte
+reproducible from the pinned revision, and `model verify` records digests for it exactly
+as for a downloaded model — an export we produced is an export we own.
+
+Do it once on a machine with the disk and bandwidth, then copy the model directory to
+wherever it needs to run; the server itself needs nothing but `onnxruntime`.
 
 Files live under `EMBEDFORGE_MODEL_DIR` (`/var/lib/embedforge/models` in the container),
 one directory per model id, mirroring the repository layout. Quantized variants get
@@ -336,6 +350,11 @@ For another ONNX text model, add an entry to `CATALOG` in
     ),
 ),
 ```
+
+For a model that selects its task with an adapter rather than a prefix, set
+`query_task_id` and `document_task_id` instead of the prefixes. For one that publishes
+no ONNX build, set `export_from` to the source repository and give `onnx_file` the flat
+name the exporter writes (`model.onnx`).
 
 Check the upstream `1_Pooling/config.json` for the pooling mode and the model card for
 the prefixes. Tests enforce that the revision is a full sha, that pros and cons are

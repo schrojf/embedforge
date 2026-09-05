@@ -62,7 +62,38 @@ class OnnxModelConfig:
 
     query_prefix: str = ""
     document_prefix: str = ""
-    """Instruction prefixes. Empty for symmetric models."""
+    """Text prefixes the model was trained with. Empty when it uses none."""
+
+    query_task_id: int | None = None
+    document_task_id: int | None = None
+    """Index into the model's task adapters, fed as a `task_id` input.
+
+    Some models select the task with a LoRA adapter instead of a text prefix
+    (jina-embeddings-v3 does). Same purpose, different mechanism.
+    """
+
+    export_from: str | None = None
+    """Source repository to export locally, for models that publish no ONNX build."""
+
+    @property
+    def needs_export(self) -> bool:
+        return self.export_from is not None
+
+    def prefix_for(self, task: TaskType) -> str:
+        return self.query_prefix if task is TaskType.QUERY else self.document_prefix
+
+    def task_id_for(self, task: TaskType) -> int | None:
+        return self.query_task_id if task is TaskType.QUERY else self.document_task_id
+
+    @property
+    def distinguishes_tasks(self) -> bool:
+        """Whether queries and documents are encoded differently at all.
+
+        True for asymmetric models, by whichever mechanism they use.
+        """
+        return (
+            self.query_prefix != self.document_prefix or self.query_task_id != self.document_task_id
+        )
 
     @property
     def files(self) -> tuple[str, ...]:
@@ -193,9 +224,13 @@ class OnnxTextBackend(EmbeddingBackend):
     def embed(self, inputs: Sequence[EmbedInput], task: TaskType) -> np.ndarray:
         if self._session is None or self._tokenizer is None:
             raise RuntimeError("Backend is not loaded.")
-        prefix = self.config.query_prefix if task is TaskType.QUERY else self.config.document_prefix
-        texts = [prefix + item.text for item in inputs]
+        texts = [self.config.prefix_for(task) + item.text for item in inputs]
         feeds, attention_mask = self._feeds(texts)
+        task_id = self.config.task_id_for(task)
+        if task_id is not None and "task_id" in self._input_names:
+            # A 0-d array: the graph selects one adapter for the whole batch, which is
+            # exactly why the engine never mixes document and query work in one batch.
+            feeds["task_id"] = np.array(task_id, dtype=np.int64)
         hidden_states = self._session.run(None, feeds)[0]
         vectors = pool(hidden_states, attention_mask, self.config.pooling)
         return self.l2_normalize(vectors) if self.normalize else vectors

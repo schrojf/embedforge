@@ -4,6 +4,7 @@ These tests never touch the network. The one test that needs real model files sk
 itself when they are not present.
 """
 
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -63,17 +64,44 @@ def test_every_model_documents_its_trade_offs() -> None:
         assert info.modalities == (Modality.TEXT,), info.id
 
 
-def test_prefixes_match_the_symmetry_flag() -> None:
-    """A symmetric model must have no prefixes, an asymmetric one must differentiate.
+def test_task_handling_matches_the_symmetry_flag() -> None:
+    """A symmetric model must treat both tasks alike; an asymmetric one must not.
 
-    Getting this wrong produces vectors that look fine and retrieve badly, so it is
-    worth failing the build over.
+    Models do this by different mechanisms - a text prefix, or a task adapter selected
+    inside the graph - so the invariant is about the effect, not the mechanism. Getting
+    it wrong produces vectors that look fine and retrieve badly, which is worth failing
+    the build over.
     """
     for info, config in CATALOG:
-        if info.symmetric:
-            assert config.query_prefix == "" and config.document_prefix == "", info.id
-        else:
-            assert config.query_prefix != config.document_prefix, info.id
+        assert config.distinguishes_tasks is not info.symmetric, info.id
+
+
+def test_prefix_and_adapter_are_not_both_used() -> None:
+    """A model selects its task one way or the other.
+
+    jina-embeddings-v3's LoRA adapter replaces the instruction text entirely; sending a
+    prefix as well would corrupt the input without any error.
+    """
+    for info, config in CATALOG:
+        if config.query_task_id is not None:
+            assert config.query_prefix == "", info.id
+            assert config.document_prefix == "", info.id
+
+
+def test_task_ids_are_declared_in_pairs() -> None:
+    for info, config in CATALOG:
+        assert (config.query_task_id is None) == (config.document_task_id is None), info.id
+
+
+def test_exported_models_declare_a_source_and_a_flat_layout() -> None:
+    """optimum writes its export flat, unlike a published build's nested onnx/ path."""
+    for info, config in CATALOG:
+        if not config.needs_export:
+            continue
+        assert config.export_from, info.id
+        assert "/" not in config.onnx_file, info.id
+        assert "/" not in config.tokenizer_file, info.id
+        assert not config.extra_files, info.id
 
 
 def test_context_length_matches_the_tokenizer_limit() -> None:
@@ -298,3 +326,80 @@ def test_a_real_model_embeds_and_distinguishes_query_from_document() -> None:
         assert scores[0][0] > scores[0][1]
     finally:
         backend.close()
+
+
+# ---- Task selection ----
+
+
+@dataclass
+class StubNode:
+    name: str
+
+
+class StubSession:
+    """Minimal stand-in for an ONNX session, to check what gets fed to it."""
+
+    def __init__(self, input_names: list[str], dimension: int = 4) -> None:
+        self._inputs = [StubNode(name) for name in input_names]
+        self.dimension = dimension
+        self.last_feeds: dict[str, np.ndarray] = {}
+
+    def get_inputs(self) -> list[StubNode]:
+        return self._inputs
+
+    def run(self, _outputs: object, feeds: dict[str, np.ndarray]) -> list[np.ndarray]:
+        self.last_feeds = feeds
+        batch, tokens = feeds["input_ids"].shape
+        return [np.ones((batch, tokens, self.dimension), dtype=np.float32)]
+
+
+class StubTokenizer:
+    def __init__(self) -> None:
+        self.texts: list[str] = []
+
+    def encode_batch(self, texts: list[str]) -> list[object]:
+        self.texts = texts
+        return [
+            type("Encoding", (), {"ids": [1, 2, 3], "attention_mask": [1, 1, 1]})() for _ in texts
+        ]
+
+
+def stub_backend(config: OnnxModelConfig, input_names: list[str]) -> OnnxTextBackend:
+    from embedforge.engine.base import ModelInfo
+
+    info = ModelInfo(id="stub", name="stub", dimension=4, max_input_tokens=8, symmetric=False)
+    backend = OnnxTextBackend(info, config, Settings())
+    backend._session = StubSession(input_names)  # pyright: ignore[reportPrivateUsage]
+    backend._tokenizer = StubTokenizer()  # pyright: ignore[reportPrivateUsage]
+    backend._input_names = frozenset(input_names)  # pyright: ignore[reportPrivateUsage]
+    return backend
+
+
+def test_task_id_is_fed_as_a_scalar_when_the_graph_wants_one() -> None:
+    backend = stub_backend(
+        registry.onnx_config("jina-v3"), ["input_ids", "attention_mask", "task_id"]
+    )
+    backend.embed([TextInput("hello")], TaskType.QUERY)
+    session = backend._session  # pyright: ignore[reportPrivateUsage]
+    assert session.last_feeds["task_id"] == 0
+    # A 0-d array, as the model card's example uses: one adapter for the whole batch.
+    assert session.last_feeds["task_id"].shape == ()
+
+    backend.embed([TextInput("hello")], TaskType.DOCUMENT)
+    assert session.last_feeds["task_id"] == 1
+
+
+def test_undeclared_inputs_are_never_fed() -> None:
+    """Feeding an input the graph does not declare is an error, not a no-op."""
+    backend = stub_backend(registry.onnx_config("jina-v3"), ["input_ids", "attention_mask"])
+    backend.embed([TextInput("hello")], TaskType.QUERY)
+    session = backend._session  # pyright: ignore[reportPrivateUsage]
+    assert set(session.last_feeds) == {"input_ids", "attention_mask"}
+
+
+def test_prefixes_are_applied_per_task() -> None:
+    backend = stub_backend(registry.onnx_config("e5-sk-large"), ["input_ids", "attention_mask"])
+    backend.embed([TextInput("ahoj")], TaskType.QUERY)
+    assert backend._tokenizer.texts == ["query: ahoj"]  # pyright: ignore[reportPrivateUsage]
+    backend.embed([TextInput("ahoj")], TaskType.DOCUMENT)
+    assert backend._tokenizer.texts == ["passage: ahoj"]  # pyright: ignore[reportPrivateUsage]

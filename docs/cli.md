@@ -73,6 +73,11 @@ embedforge model verify e5-base        # re-hash every file
 EMBEDFORGE_MODEL_ID=e5-base embedforge serve
 ```
 
+A model that publishes no ONNX build (`e5-sk-large`) is exported locally instead: the
+same `download` command fetches the source at its pinned revision and runs the exporter
+through `uvx`, which keeps PyTorch out of this project entirely. Expect a few minutes
+and about twice the final size in disk while it runs.
+
 Downloads are reproducible: each model is pinned to a commit sha, so the same command
 gives the same bytes tomorrow. `download` writes a `manifest.json` of sha256 digests
 beside the files, and `verify` checks against it — which is how a truncated download is

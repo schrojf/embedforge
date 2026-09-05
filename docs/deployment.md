@@ -92,9 +92,15 @@ download size in RAM plus a few hundred megabytes:
 | --- | --- | --- |
 | `e5-small-int8` | 135 MB | 512 MB |
 | `e5-base` | 1.1 GB | 2 GB |
-| `e5-large-instruct`, `bge-m3` | 2.3 GB | 4 GB |
+| `e5-sk-large` | 1.5 GB | 2 GB |
+| `e5-large-instruct`, `bge-m3`, `jina-v3` | 2.3 GB | 4 GB |
 
 Model files are re-downloadable, so they do not need backing up — unlike the token file.
+
+One exception to "download it in the container": `e5-sk-large` is exported rather than
+downloaded, which needs `uv` and roughly 3 GB of scratch space. Do that once on a
+machine that has both, then copy the model directory into the volume. The server itself
+needs only `onnxruntime`.
 
 ## GPU
 
