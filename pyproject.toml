@@ -186,9 +186,11 @@ reportUnusedFunction = false
 # reportUnknownArgumentType = false
 
 [tool.codespell]
+# The cross-lingual check is deliberately written in 26 languages, so English
+# spell-checking finds "typos" like the German "ist" and the Swedish "sover".
+skip = "devtools/multilingual_check.py,docs/benchmark-results.json"
 # Add here as needed:
 # ignore-words-list = "foo,bar"
-# skip = "foo.py,bar.py"
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

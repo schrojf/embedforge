@@ -155,6 +155,54 @@ What it does mean in every case: **re-embedding a document does not reproduce it
 vector exactly**. If you need vectors that are bit-stable across runs — for caching,
 deduplication, or an index you rebuild incrementally — use a full-precision model.
 
+## How broad is bge-m3 really
+
+`bge-m3` claims "more than 100 working languages". That number is inherited rather than
+invented: it is built on **XLM-RoBERTa large** (250k-token vocabulary, extended to 8192
+tokens of context), so it can represent what XLM-R was pretrained on — roughly 100
+languages from CommonCrawl. Its authors evaluate it on MIRACL (18 languages), MKQA (25)
+and MLDR (13), which between them cover Arabic, Bengali, Chinese, Japanese, Korean,
+Hindi, Telugu, Thai, Swahili and most of Europe.
+
+Rather than repeat the claim, here it is measured. One Slovak query,
+*"Aké je hlavné mesto Slovenska?"*, against 26 languages across 13 families — each with
+one sentence that answers it and one that does not:
+
+```bash
+embedforge model download bge-m3
+uv run python devtools/multilingual_check.py bge-m3 e5-small-int8
+```
+
+| Model | Languages resolved | Worst correct | Best distractor | Globally separable |
+| --- | --- | ---: | ---: | --- |
+| `bge-m3` | 26 / 26 | 0.469 | 0.312 | **yes** |
+| `e5-small-int8` | 26 / 26 | 0.712 | 0.740 | **no — overlap** |
+
+Both answer every language correctly when you compare that language's two sentences.
+The difference appears when you look at all 52 sentences at once: `e5-small`'s worst
+correct answer (Korean, 0.712) scores *below* its best distractor (a Romanian sentence
+about a cat, 0.740). In a corpus that mixes languages it would rank an irrelevant
+Romanian document above a relevant Korean one. `bge-m3` keeps a clean gap: every correct
+answer in every script outranks every distractor.
+
+That is the practical meaning of "multilingual" for a retrieval system, and it is why
+`bge-m3` is the right pick if your corpus genuinely mixes languages, rather than being
+Slovak and English with a few stray words.
+
+**One caveat worth knowing.** `bge-m3`'s absolute scores are not uniform across
+families:
+
+| | Similarity to the correct answer |
+| --- | --- |
+| Slovak, Czech | 0.76 – 0.78 |
+| Western European | 0.54 – 0.62 |
+| Chinese, Japanese, Korean, Hindi, Arabic | 0.47 – 0.51 |
+
+The *ordering* is right everywhere, but a Korean match scores 0.47 where a Slovak one
+scores 0.78. **Do not set a single similarity threshold across languages.** A cutoff
+tuned on European text — say 0.55 — would silently discard every correct Asian result.
+Either rank without a threshold, or calibrate per language.
+
 ## Models considered but not shipped
 
 The catalog is a short list drawn from a much longer one. This section records what else
@@ -282,6 +330,9 @@ multi-vector ColBERT-style. This server uses the **dense** vector only, because 
 what a one-vector-per-input API can express. Hybrid dense+sparse retrieval is
 meaningfully better on some corpora, but it is a property of your retrieval stack rather
 than of an embedding endpoint.
+
+Its language coverage is covered separately in
+[how broad is bge-m3 really](#how-broad-is-bge-m3-really).
 
 ## Comparing models before you commit
 
