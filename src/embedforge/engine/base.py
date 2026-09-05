@@ -91,10 +91,10 @@ class EmbeddingBackend(ABC):
         self.info = info
         self.normalize = normalize
 
-    def load(self) -> None:
+    def load(self) -> None:  # noqa: B027 - optional hook; stateless backends need none
         """Prepare the model. Called once, off the event loop."""
 
-    def close(self) -> None:
+    def close(self) -> None:  # noqa: B027 - optional hook; stateless backends need none
         """Release resources. Called once at shutdown."""
 
     @abstractmethod

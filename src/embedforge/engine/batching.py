@@ -26,7 +26,7 @@ from collections import deque
 from collections.abc import Sequence
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
 
@@ -37,7 +37,8 @@ from embedforge.logging import get_logger
 
 log = get_logger(__name__)
 
-_SHUTDOWN = None
+# A None on the queue means "stop after draining what is already there".
+_SHUTDOWN: None = None
 
 
 @dataclass(slots=True)
@@ -219,7 +220,7 @@ class InferenceEngine:
         loop = asyncio.get_running_loop()
         while True:
             job = await self._queue.get()
-            stopping = job is _SHUTDOWN
+            stopping = job is None
             if job is not None:
                 self._enqueue(job)
             # Whatever else already arrived joins this batch for free.
@@ -256,7 +257,7 @@ class InferenceEngine:
                 job = self._queue.get_nowait()
             except asyncio.QueueEmpty:
                 return stopping
-            if job is _SHUTDOWN:
+            if job is None:
                 stopping = True
             else:
                 self._enqueue(job)
@@ -273,7 +274,7 @@ class InferenceEngine:
                 job = await asyncio.wait_for(self._queue.get(), remaining)
             except TimeoutError:
                 return False
-            if job is _SHUTDOWN:
+            if job is None:
                 return True
             self._enqueue(job)
             if self._drain_nowait():
@@ -342,4 +343,6 @@ class InferenceEngine:
             job.results[item.index] = matrix[row]
             job.remaining -= 1
             if job.remaining == 0:
-                job.future.set_result(np.stack(job.results))  # pyright: ignore[reportArgumentType]
+                # Every slot is filled once remaining hits zero.
+                rows = cast(list[np.ndarray], job.results)
+                job.future.set_result(np.stack(rows))

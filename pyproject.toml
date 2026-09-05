@@ -69,6 +69,7 @@ dev = [
     "funlog>=0.2.1",
     "httpx>=0.28",
     "pytest-asyncio>=0.24",
+    "httpx2>=2.12.0",
 ]
 
 [project.scripts]
@@ -167,6 +168,14 @@ reportAny = false
 reportExplicitAny = false
 reportImplicitStringConcatenation = false
 reportUnreachable = false
+# Fires on every plain `self.x = value` in a non-@final class, which is ordinary
+# Python and also how pydantic's `model_config` is written. Too noisy to be useful.
+reportUnannotatedClassAttribute = false
+# A style rule: we support Python 3.11, where `typing.override` is unavailable.
+reportImplicitOverride = false
+# Route handlers and exception handlers are registered by decorator and never called
+# by name, so this rule only ever reports false positives in a FastAPI app.
+reportUnusedFunction = false
 # reportPrivateImportUsage = false
 # reportPrivateLocalImportUsage = false
 # reportMissingImports = false
@@ -180,6 +189,8 @@ reportUnreachable = false
 # skip = "foo.py,bar.py"
 
 [tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
 python_files = ["*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
