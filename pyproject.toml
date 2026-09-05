@@ -46,6 +46,7 @@ dependencies = [
     "prometheus-client>=0.21",
     "pydantic>=2.9",
     "pydantic-settings>=2.6",
+    "rich>=14",
     "structlog>=24.4",
     "typer>=0.15",
     "uvicorn[standard]>=0.34",
@@ -73,8 +74,7 @@ dev = [
 ]
 
 [project.scripts]
-# Add script entry points here:
-embedforge = "embedforge:main"
+embedforge = "embedforge.cli.main:app"
 
 
 # ---- Build system ----
