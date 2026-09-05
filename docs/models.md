@@ -34,6 +34,44 @@ Every response reports `"symmetric": true|false`, and the model catalog reports 
 model. Client code should still use the endpoint that matches its intent, so that
 switching the server between the two kinds is a configuration change and not a rewrite.
 
+## Comparing models before you commit
+
+`embedforge model compare` runs the same inputs through several models and shows what
+each one does with them:
+
+```bash
+embedforge model compare -q "how do I reset my password" -f corpus.txt
+```
+
+Per model you get the ranked results with cosine scores, load time, and milliseconds
+per item; across models you get a rank-agreement matrix (Spearman, where 1.0 means
+identical ordering).
+
+How to read the agreement number:
+
+- **High agreement** means the models would retrieve the same documents for your
+  queries. Take the cheaper or smaller one; the choice does not matter.
+- **Low agreement** means the choice does matter, and benchmark averages will not settle
+  it. Judge the rankings yourself on queries you care about.
+
+Use your own corpus and your own queries. A public benchmark says how a model does on
+someone else's data.
+
+### Why this is a CLI and not a development API
+
+The obvious alternative is an endpoint that loads a model per request so models can be
+compared over HTTP. This project deliberately does not do that:
+
+- Serving several models means either paying the load cost on every request or holding
+  every model in memory — the exact costs the one-model-per-process design avoids.
+- A "load any model the caller names" code path must never be reachable in production,
+  and the safest way to guarantee that is for it not to exist in the server.
+- Comparison offline can measure things a request cannot, such as load time, and can
+  compare rankings *across* models rather than returning one vector at a time.
+
+If you do want comparisons over HTTP later, run one container per model behind the same
+API. That keeps every process single-model and makes the comparison a client concern.
+
 ## Choosing a model
 
 The trade-offs that matter, roughly in order:
@@ -46,6 +84,9 @@ The trade-offs that matter, roughly in order:
 - **Maximum input length.** Longer contexts cost quadratically in attention. If your
   documents are long, chunking may beat a long-context model.
 - **Language coverage.** Multilingual models trade some English quality for breadth.
+
+`model compare` gives you the second and third of these directly, and evidence for the
+first.
 
 ## Switching models
 

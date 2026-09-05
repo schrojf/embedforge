@@ -1,5 +1,6 @@
 """The token and model command-line interfaces."""
 
+import json
 from collections.abc import Iterator
 from datetime import UTC, datetime
 from pathlib import Path
@@ -113,3 +114,65 @@ def test_a_cli_created_token_works_against_the_server(cli_env: Path, tmp_path: P
         response = client.get("/v1/user", headers={"Authorization": f"Bearer {token}"})
         assert response.status_code == 200
         assert response.json()["name"] == "e2e"
+
+
+def test_compare_ranks_documents_for_a_query(cli_env: Path) -> None:
+    del cli_env
+    output = run(
+        "model",
+        "compare",
+        "dev-hash",
+        "dev-hash",
+        "-q",
+        "a query",
+        "-t",
+        "first document",
+        "-t",
+        "second document",
+    )
+    assert "Models compared" in output
+    assert "Ranking agreement" in output
+    assert "first document" in output
+
+
+def test_compare_without_queries_shows_document_similarity(cli_env: Path) -> None:
+    del cli_env
+    output = run("model", "compare", "-t", "alpha", "-t", "beta")
+    assert "Document similarity" in output
+
+
+def test_compare_reads_documents_from_a_file(cli_env: Path, tmp_path: Path) -> None:
+    del cli_env
+    corpus = tmp_path / "docs.txt"
+    corpus.write_text("first line\n\nsecond line\n", encoding="utf-8")
+    output = run("model", "compare", "-q", "query", "-f", str(corpus))
+    assert "first line" in output and "second line" in output
+
+
+def test_compare_emits_json(cli_env: Path) -> None:
+    del cli_env
+    output = run("model", "compare", "-q", "q", "-t", "a", "-t", "b", "--json")
+    payload = json.loads(output)
+    assert payload["documents"] == ["a", "b"]
+    assert payload["models"][0]["id"] == "dev-hash"
+    assert len(payload["models"][0]["rankings"][0]) == 2
+    assert payload["agreement"]["dev-hash"]["dev-hash"] == pytest.approx(1.0)
+
+
+def test_compare_needs_something_to_embed(cli_env: Path) -> None:
+    del cli_env
+    result = runner.invoke(cli, ["model", "compare", "-q", "only a query"])
+    assert result.exit_code == 1
+    assert "Nothing to embed" in result.output
+
+
+def test_compare_fails_clearly_when_no_model_loads(cli_env: Path) -> None:
+    del cli_env
+    result = runner.invoke(cli, ["model", "compare", "no-such-model", "-t", "a"])
+    assert result.exit_code == 1
+
+
+def test_compare_rejects_a_missing_file(cli_env: Path) -> None:
+    del cli_env
+    result = runner.invoke(cli, ["model", "compare", "-t", "a", "-f", "/nope/missing.txt"])
+    assert result.exit_code == 1

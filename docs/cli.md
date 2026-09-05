@@ -52,13 +52,52 @@ embedforge token create indexer --scopes embed --note "nightly reindex job"
 
 ## `embedforge model`
 
-Inspects the model catalog. Downloading and verifying model files land here alongside
+Inspects and compares models. Downloading and verifying model files land here alongside
 the ONNX backends; see [models.md](models.md).
 
 | Command | Purpose |
 | --- | --- |
 | `model list` | Every model this build can serve, marking the configured one. |
 | `model info ID` | One model in full, including its pros and cons. |
+| `model compare [MODELS…]` | Run the same inputs through several models and compare them. |
+
+### `model compare`
+
+```bash
+# Rank a corpus against real queries, across every registered model.
+embedforge model compare -q "how do I reset my password" -f corpus.txt
+
+# Two specific models, three queries, top 3 results each.
+embedforge model compare e5-small bge-base \
+  -q "reset password" -q "billing question" -q "rate limits" \
+  -f corpus.txt --top-k 3
+
+# Machine-readable, for scripting an evaluation.
+embedforge model compare --json -q "cats" -f corpus.txt > results.json
+```
+
+| Option | Effect |
+| --- | --- |
+| `MODELS…` | Model ids to compare. Defaults to every registered model. |
+| `--query`, `-q` | A search query. Repeatable. |
+| `--text`, `-t` | A document to rank. Repeatable. |
+| `--file`, `-f` | A file of documents, one per line. |
+| `--top-k`, `-k` | Results shown per query (default 5). |
+| `--rounds` | Timed passes to average, for steadier latency numbers (default 1). |
+| `--json` | Machine-readable output. |
+
+Each model is loaded, used, and released before the next one starts, so peak memory is
+one model rather than all of them. A model that fails to load is reported and skipped
+rather than aborting the run.
+
+**With queries** you get, per model, the top-ranked documents with cosine scores, plus a
+rank-agreement matrix across models. **Without queries** you get each model's
+document-to-document similarity instead, which is useful for checking whether a model
+separates things you consider different.
+
+The report also shows load time and milliseconds per item. On a CPU server that is
+often the deciding number, so it belongs next to the quality signal rather than in a
+separate tool.
 
 ## `embedforge config`
 

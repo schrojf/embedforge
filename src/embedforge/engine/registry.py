@@ -48,9 +48,13 @@ def get_spec(model_id: str) -> ModelSpec:
         ) from None
 
 
-def create_backend(settings: Settings) -> EmbeddingBackend:
-    """Instantiate the backend for the configured model. Does not load it."""
-    spec = get_spec(settings.model_id)
+def create_backend(settings: Settings, model_id: str | None = None) -> EmbeddingBackend:
+    """Instantiate a backend. Does not load it.
+
+    Defaults to the configured model; `model_id` overrides it for tools that work
+    across models, such as `embedforge model compare`.
+    """
+    spec = get_spec(model_id or settings.model_id)
     return spec.factory(settings, spec.info)
 
 

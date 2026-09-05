@@ -9,6 +9,7 @@ src/embedforge/
   errors.py          Error taxonomy; each error knows its HTTP status
   metrics.py         Prometheus metric definitions
   runtime.py         Thread-limit env vars, applied before numpy loads
+  comparison.py      Offline multi-model comparison, used by the CLI
   auth/
     models.py        Token, principal, scopes, hashing
     store.py         Atomic, mtime-reloading JSON token file
@@ -96,6 +97,8 @@ prepends different instructions per task needs no engine changes.
 ## What is not here yet
 
 - Real embedding models. `dev-hash` is a placeholder; ONNX backends are the next step.
+- Multi-model serving. One process serves one model by design; compare models offline
+  with `embedforge model compare` (see [models.md](models.md)).
 - Per-token rate limiting. Overload protection is global; use the reverse proxy for
   per-client quotas.
 - Multi-process metric aggregation. Scrape each replica separately.
