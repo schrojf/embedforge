@@ -4,8 +4,6 @@ Model files are downloaded and verified here rather than at server startup, so a
 container starts fast, starts offline, and cannot half-download a model under load.
 """
 
-from __future__ import annotations
-
 from typing import Annotated
 
 import typer

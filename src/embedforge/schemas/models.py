@@ -1,7 +1,5 @@
 """Model catalog responses."""
 
-from __future__ import annotations
-
 from pydantic import BaseModel, ConfigDict, Field
 
 from embedforge.engine.base import Modality, ModelInfo
@@ -26,7 +24,7 @@ class ModelDescription(BaseModel):
     active: bool = Field(description="True for the model this server has loaded.")
 
     @classmethod
-    def from_info(cls, info: ModelInfo, *, active: bool) -> ModelDescription:
+    def from_info(cls, info: ModelInfo, *, active: bool) -> "ModelDescription":
         return cls(
             id=info.id,
             name=info.name,

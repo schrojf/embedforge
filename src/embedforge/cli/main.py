@@ -5,8 +5,6 @@ clients, `embedforge model ...` manages model files. They share nothing but the
 configuration, so either can be used without the server running.
 """
 
-from __future__ import annotations
-
 import os
 from typing import Annotated
 

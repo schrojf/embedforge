@@ -4,8 +4,6 @@ Written as a raw ASGI middleware rather than `BaseHTTPMiddleware`: it costs less
 request and does not interfere with streaming responses or background tasks.
 """
 
-from __future__ import annotations
-
 import time
 import uuid
 from collections.abc import MutableMapping

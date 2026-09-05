@@ -1,7 +1,5 @@
 """Batching, backpressure, and failure behavior of the inference engine."""
 
-from __future__ import annotations
-
 import asyncio
 import time
 from collections.abc import Sequence

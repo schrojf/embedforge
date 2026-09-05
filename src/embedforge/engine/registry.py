@@ -5,8 +5,6 @@ One model is loaded per process, chosen by `EMBEDFORGE_MODEL_ID`; the registry i
 `embedforge model list` reads and what documents the trade-offs between them.
 """
 
-from __future__ import annotations
-
 from collections.abc import Callable
 from dataclasses import dataclass
 

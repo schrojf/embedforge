@@ -9,8 +9,6 @@ backs the test suite, CI, and container smoke checks. Real ONNX models register
 alongside it in `embedforge.engine.registry`.
 """
 
-from __future__ import annotations
-
 import hashlib
 from collections.abc import Sequence
 

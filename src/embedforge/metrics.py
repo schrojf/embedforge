@@ -5,8 +5,6 @@ Metrics are always recorded; `EMBEDFORGE_METRICS_ENABLED` only controls whether 
 available makes incident debugging possible.
 """
 
-from __future__ import annotations
-
 from prometheus_client import Counter, Gauge, Histogram, Info
 
 HTTP_REQUESTS = Counter(

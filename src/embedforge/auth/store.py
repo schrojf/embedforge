@@ -9,8 +9,6 @@ The server re-reads the file when its mtime changes, so `embedforge token create
 and `embedforge token revoke` take effect without a restart.
 """
 
-from __future__ import annotations
-
 import json
 import os
 import tempfile

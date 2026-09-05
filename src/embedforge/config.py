@@ -8,8 +8,6 @@ flat: environment variables are the primary deployment interface, so
 See ``docs/configuration.md`` for the full reference.
 """
 
-from __future__ import annotations
-
 import os
 from functools import lru_cache
 from pathlib import Path

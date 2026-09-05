@@ -4,8 +4,6 @@ Every failure the API returns is one of these, so responses share a single
 envelope: `{"error": {"type": ..., "message": ...}, "request_id": ...}`.
 """
 
-from __future__ import annotations
-
 
 class EmbedForgeError(Exception):
     """Base class for errors that map to an HTTP response."""

@@ -5,8 +5,6 @@ imported, because those read the environment once at load time. That is why the
 `serve` command touches them before importing the application.
 """
 
-from __future__ import annotations
-
 import os
 
 THREAD_ENV_VARS = (

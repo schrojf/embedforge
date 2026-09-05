@@ -7,8 +7,6 @@ right choice here because the secret is 256 bits of CSPRNG output: there is no
 low-entropy password to protect and verification sits on the hot request path.
 """
 
-from __future__ import annotations
-
 import hashlib
 import hmac
 import secrets
@@ -86,7 +84,7 @@ class TokenRecord(BaseModel):
     def verify(self, token: str) -> bool:
         return hmac.compare_digest(self.token_hash, hash_token(token))
 
-    def to_principal(self) -> Principal:
+    def to_principal(self) -> "Principal":
         return Principal(
             id=self.id,
             name=self.name,

@@ -6,8 +6,6 @@ plug in later: add an input type, declare the modality in `ModelInfo.modalities`
 teach the API schema to build it. Nothing in the queueing or HTTP layer changes.
 """
 
-from __future__ import annotations
-
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from dataclasses import dataclass, field

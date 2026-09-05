@@ -4,8 +4,6 @@ The plaintext token is shown exactly once, at creation. Only its SHA-256 digest 
 stored, so a lost token is replaced rather than recovered.
 """
 
-from __future__ import annotations
-
 import re
 from datetime import UTC, datetime, timedelta
 from typing import Annotated

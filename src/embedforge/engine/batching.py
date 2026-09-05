@@ -17,8 +17,6 @@ The concurrency model, in one place:
   an unbounded queue that guarantees timeouts for everyone.
 """
 
-from __future__ import annotations
-
 import asyncio
 import functools
 import time

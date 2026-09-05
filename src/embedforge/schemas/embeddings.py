@@ -1,7 +1,5 @@
 """Embedding request and response models."""
 
-from __future__ import annotations
-
 from pydantic import BaseModel, ConfigDict, Field
 
 from embedforge.engine.base import TaskType

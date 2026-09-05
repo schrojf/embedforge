@@ -5,8 +5,6 @@ One handler on the root logger renders both structlog events and stdlib records
 consistent log stream: JSON for machines, colored text for humans.
 """
 
-from __future__ import annotations
-
 import logging
 import sys
 from typing import Any

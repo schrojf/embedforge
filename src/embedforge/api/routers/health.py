@@ -4,8 +4,6 @@ Unauthenticated by design: load balancers and orchestrators need them, and they
 expose nothing sensitive.
 """
 
-from __future__ import annotations
-
 from typing import Any
 
 from fastapi import APIRouter, Request

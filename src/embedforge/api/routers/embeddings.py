@@ -6,8 +6,6 @@ Keeping them as separate endpoints means client code does not change when the se
 later runs an asymmetric model that does distinguish them.
 """
 
-from __future__ import annotations
-
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends

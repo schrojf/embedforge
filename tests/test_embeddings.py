@@ -1,7 +1,5 @@
 """The /v1/embed and /v1/query endpoints."""
 
-from __future__ import annotations
-
 import math
 
 from fastapi.testclient import TestClient
