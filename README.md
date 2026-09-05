@@ -3,7 +3,8 @@
 An embedding server: `POST /v1/embed` for content you store, `POST /v1/query` for search
 queries, one model loaded per process.
 
-- **ONNX-first, CPU-first.** Built for CPU inference, with GPU as an option.
+- **ONNX-first, CPU-first.** Eight multilingual models pre-configured, from a 135 MB
+  quantized model to a 2.3 GB one, each documented with its trade-offs. GPU optional.
 - **Built for concurrency.** Requests from different callers are merged into batches,
   run on a thread pool that releases the GIL, and shed with 503 rather than queued
   without bound. See [performance.md](docs/performance.md).
@@ -34,8 +35,17 @@ docker compose up -d
 ```
 
 The default model is `dev-hash`, which produces deterministic but **meaningless**
-vectors so the server runs with no downloads. Real ONNX models are the next step; see
-[models.md](docs/models.md).
+vectors so the server starts with no downloads. For real work, pick one:
+
+```bash
+embedforge model list                  # the catalog and what is downloaded
+embedforge model download e5-base      # recommended starting point
+EMBEDFORGE_MODEL_ID=e5-base embedforge serve
+```
+
+Model choice for Slovak and English is backed by [SkMTEB](https://arxiv.org/html/2606.13647v1)
+rather than the global leaderboard, which ranks these models quite differently. Compare
+them on your own data with `embedforge model compare`. See [models.md](docs/models.md).
 
 ## Documentation
 

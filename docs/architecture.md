@@ -17,6 +17,9 @@ src/embedforge/
     base.py          Backend interface, ModelInfo, inputs, task types
     batching.py      The dispatcher: merging, backpressure, thread pool
     registry.py      Model catalog: id -> (ModelInfo, factory)
+    catalog.py       The ONNX models this build can serve, with their trade-offs
+    onnx_backend.py  ONNX Runtime session, tokenizer, pooling, task prefixes
+    download.py      Fetching model files and verifying them against a manifest
     dev_hash.py      Deterministic no-download backend
   schemas/           Pydantic request/response models
   api/
@@ -72,10 +75,16 @@ still declares the shape for OpenAPI.
 
 ## Extension points
 
-**Adding a model.** Implement `EmbeddingBackend` — `embed(inputs, task) -> ndarray`,
-plus optional `load` and `close` — and register a `ModelSpec` in
-`engine/registry.py` with its `ModelInfo`. Nothing else changes: the CLI, the
-`/v1/models` endpoint, and the docs all read the registry. See [models.md](models.md).
+**Adding a model.** For another ONNX text model, add an entry to `CATALOG` in
+`engine/catalog.py` — the shared `OnnxTextBackend` runs it. For a different runtime,
+implement `EmbeddingBackend` (`embed(inputs, task) -> ndarray`, plus optional `load` and
+`close`) and register a `ModelSpec`. Nothing else changes: the CLI, the `/v1/models`
+endpoint, and the docs all read the registry. See [models.md](models.md).
+
+**Pooling and prefixes live with the model.** How token vectors are reduced to one
+vector, and what prefix each task gets, are properties of how a model was trained.
+Guessing them at load time produces vectors that look correct and retrieve badly, so
+they are declared per model and asserted by tests.
 
 **Adding an input modality.** Text is the only implemented modality, but the pipeline is
 already modality-aware rather than string-typed:
@@ -96,7 +105,6 @@ prepends different instructions per task needs no engine changes.
 
 ## What is not here yet
 
-- Real embedding models. `dev-hash` is a placeholder; ONNX backends are the next step.
 - Multi-model serving. One process serves one model by design; compare models offline
   with `embedforge model compare` (see [models.md](models.md)).
 - Per-token rate limiting. Overload protection is global; use the reverse proxy for

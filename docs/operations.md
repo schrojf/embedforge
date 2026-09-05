@@ -94,6 +94,10 @@ rather than aggregating at the load balancer.
 One thing is irreplaceable: **the token file** (`EMBEDFORGE_TOKENS_FILE`). It holds only
 digests, so a lost file means every client needs a new token.
 
+Model files under `EMBEDFORGE_MODEL_DIR` are re-downloadable and pinned to commit shas,
+so they need no backup — but do budget the disk: between 135 MB and 2.3 GB per model,
+and `model compare` runs want more than one present at a time.
+
 ```bash
 docker run --rm -v embedforge-data:/data -v "$PWD":/backup alpine \
   tar czf /backup/embedforge-tokens-"$(date +%F)".tar.gz -C /data tokens.json
@@ -126,6 +130,21 @@ volume. Note that a newly created token takes up to
 **`/readyz` stays 503.** The model has not loaded. Check the logs for `engine_started`;
 if it never appears, the load failed and the process should have exited. `docker logs`
 has the traceback.
+
+**Startup fails with a missing model file.** The model was never downloaded on this
+host, or the volume is not mounted where the server expects. The error names the path
+and the command to fix it:
+`docker compose run --rm embedforge model download <id>`.
+
+**Startup fails with a corrupt or unreadable model graph.** Usually a truncated
+download. Confirm with `embedforge model verify <id>`, then re-fetch with
+`embedforge model download <id> --force`.
+
+**Retrieval quality is bad but nothing is broken.** Check that clients use `/v1/query`
+for queries and `/v1/embed` for stored content. With an asymmetric model the prefixes
+differ, and using the wrong endpoint degrades ranking without any error. Also confirm
+your stored vectors came from the model currently loaded — send the `model` field on
+requests so a mismatch is a 400 rather than silently wrong results.
 
 **Requests return 503 `overloaded`.** Working as designed: the queue is full. Either the
 load is genuinely above capacity, or the client is sending many tiny requests instead of

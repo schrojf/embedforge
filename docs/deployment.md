@@ -59,6 +59,63 @@ docker run -d --name embedforge \
 `--cpus` is not just a limit: the server reads its CPU affinity at startup to size its
 thread pools, so this is also how you tell it how much machine it has.
 
+## Model files
+
+Models are **not baked into the image**. They live in the mounted volume, downloaded
+before the server starts:
+
+```bash
+docker compose run --rm embedforge model download e5-base
+docker compose run --rm embedforge model verify e5-base
+# then set EMBEDFORGE_MODEL_ID=e5-base and start
+docker compose up -d
+```
+
+This keeps the image small (about 500 MB rather than several gigabytes), lets you change
+models without rebuilding, and means an image rebuild does not re-download two gigabytes
+of weights. The cost is one extra step on a fresh host, and a container that will not
+become ready if you forget it — which `/readyz` reports plainly.
+
+If you would rather have a self-contained image (an air-gapped host, or an immutable
+deployment with no writable volume), add to the runtime stage:
+
+```dockerfile
+ARG MODEL_ID=e5-base
+ENV EMBEDFORGE_MODEL_ID=${MODEL_ID}
+RUN embedforge model download ${MODEL_ID} && embedforge model verify ${MODEL_ID}
+```
+
+Size the container for the model, not the server. The process needs roughly the model's
+download size in RAM plus a few hundred megabytes:
+
+| Model | Download | Suggested memory limit |
+| --- | --- | --- |
+| `e5-small-int8` | 135 MB | 512 MB |
+| `e5-base` | 1.1 GB | 2 GB |
+| `e5-large-instruct`, `bge-m3` | 2.3 GB | 4 GB |
+
+Model files are re-downloadable, so they do not need backing up — unlike the token file.
+
+## GPU
+
+The image installs `onnxruntime` (CPU). For GPU, swap the package and tell the server to
+use it:
+
+```dockerfile
+RUN uv pip install --python /app/.venv/bin/python onnxruntime-gpu
+```
+
+```bash
+EMBEDFORGE_DEVICE=cuda   # or `auto` to prefer GPU when present and fall back to CPU
+```
+
+`cuda` fails loudly at startup if the CUDA execution provider is unavailable, which is
+what you want: silently serving from CPU at a tenth of the speed is worse than not
+starting. Run the container with `--gpus all` and a CUDA-capable base image.
+
+For most private deployments this is not worth it. A quantized model on a few CPU cores
+serves a personal workload comfortably, and GPU memory is expensive to leave idle.
+
 ## Reverse proxy
 
 Terminate TLS in front of the server and do not expose it directly. Caddy, with
@@ -178,6 +235,8 @@ version.
 - [ ] `/metrics` blocked at the proxy.
 - [ ] `EMBEDFORGE_FORWARDED_ALLOW_IPS` set to the proxy, not `*`.
 - [ ] Token file on a volume, and in your backups.
+- [ ] Model downloaded into the volume and verified, with `EMBEDFORGE_MODEL_ID` set.
+- [ ] Memory limit sized for the model, not the server.
 - [ ] CPU and memory limits set; `--cpus` matches the capacity you intend.
 - [ ] `stop_grace_period` (or `TimeoutStopSec`) above the graceful shutdown timeout.
 - [ ] Log rotation configured, or logs shipped off the box.

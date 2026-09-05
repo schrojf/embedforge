@@ -52,14 +52,32 @@ embedforge token create indexer --scopes embed --note "nightly reindex job"
 
 ## `embedforge model`
 
-Inspects and compares models. Downloading and verifying model files land here alongside
-the ONNX backends; see [models.md](models.md).
+Inspects, downloads, verifies, and compares models. See [models.md](models.md) for the
+catalog and how to choose.
 
 | Command | Purpose |
 | --- | --- |
-| `model list` | Every model this build can serve, marking the configured one. |
+| `model list` | Every model this build can serve, with download status. |
 | `model info ID` | One model in full, including its pros and cons. |
+| `model download ID [--force]` | Fetch a model's files and record their digests. |
+| `model verify ID [--quick]` | Check downloaded files against those digests. |
+| `model remove ID [--yes]` | Delete a model's files. |
 | `model compare [MODELS…]` | Run the same inputs through several models and compare them. |
+
+### Getting a model onto a machine
+
+```bash
+embedforge model list                  # what is available, and what is present
+embedforge model download e5-base      # ~1.1 GB, pinned to a commit sha
+embedforge model verify e5-base        # re-hash every file
+EMBEDFORGE_MODEL_ID=e5-base embedforge serve
+```
+
+Downloads are reproducible: each model is pinned to a commit sha, so the same command
+gives the same bytes tomorrow. `download` writes a `manifest.json` of sha256 digests
+beside the files, and `verify` checks against it — which is how a truncated download is
+caught before it becomes a confusing startup crash. `--quick` skips hashing and checks
+presence and size only.
 
 ### `model compare`
 
@@ -78,7 +96,7 @@ embedforge model compare --json -q "cats" -f corpus.txt > results.json
 
 | Option | Effect |
 | --- | --- |
-| `MODELS…` | Model ids to compare. Defaults to every registered model. |
+| `MODELS…` | Model ids to compare. Defaults to every model currently downloaded. |
 | `--query`, `-q` | A search query. Repeatable. |
 | `--text`, `-t` | A document to rank. Repeatable. |
 | `--file`, `-f` | A file of documents, one per line. |

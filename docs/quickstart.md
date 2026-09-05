@@ -42,9 +42,26 @@ curl -s -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
 
 Interactive docs are at <http://127.0.0.1:8000/docs>.
 
-## What you get by default
+## Switch to a real model
 
 The default model is `dev-hash`, which produces **deterministic but meaningless**
-vectors. It exists so the server runs with no downloads, which makes deployment and
-smoke tests easy to verify. Real models are the subject of
-[models.md](models.md); set `EMBEDFORGE_MODEL_ID` once one is configured.
+vectors. It exists so the server starts with no downloads, which makes deployment easy
+to verify — but it cannot do retrieval.
+
+```bash
+embedforge model list                  # the catalog and what is downloaded
+embedforge model download e5-base      # ~1.1 GB
+embedforge model verify e5-base
+EMBEDFORGE_MODEL_ID=e5-base embedforge serve
+```
+
+In a container, download into the mounted volume first:
+
+```bash
+docker compose run --rm embedforge model download e5-base
+docker compose up -d   # with EMBEDFORGE_MODEL_ID=e5-base set
+```
+
+`e5-base` is the recommended starting point for Slovak and English. See
+[models.md](models.md) for the full catalog, the benchmark evidence behind it, and how
+to compare models on your own data.

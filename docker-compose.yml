@@ -2,6 +2,7 @@
 #
 #   docker compose build
 #   docker compose run --rm embedforge token create my-client
+#   docker compose run --rm embedforge model download e5-base
 #   docker compose up -d
 
 services:
@@ -22,6 +23,8 @@ services:
     environment:
       EMBEDFORGE_ENV: prod
       EMBEDFORGE_LOG_FORMAT: json
+      # dev-hash needs no download but produces meaningless vectors. Download a real
+      # model into the volume first, then set it here. See docs/models.md.
       EMBEDFORGE_MODEL_ID: dev-hash
       # One process for CPU inference: more would each load their own model copy
       # and fight over the same cores. Scale with replicas or a bigger box instead.
@@ -36,7 +39,8 @@ services:
       # EMBEDFORGE_FORWARDED_ALLOW_IPS: "172.18.0.0/16"
 
     volumes:
-      # Token file and model files. Back this up: tokens cannot be recovered.
+      # Token file and model files. Back up the tokens: they cannot be recovered.
+      # Models are re-downloadable, but size the volume for them (135 MB - 2.3 GB each).
       - embedforge-data:/var/lib/embedforge
 
     # Longer than EMBEDFORGE_TIMEOUT_GRACEFUL_SHUTDOWN (30s), so in-flight
@@ -57,6 +61,8 @@ services:
           # Inference is CPU-bound: this cap is also what the server divides across
           # its inference threads, via the cgroup CPU affinity it reads at startup.
           cpus: "4"
+          # Size for the model: ~512M for e5-small-int8, 2G for e5-base,
+          # 4G for e5-large-instruct or bge-m3.
           memory: 2G
 
     logging:

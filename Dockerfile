@@ -83,7 +83,11 @@ ENV PATH="/app/.venv/bin:${PATH}" \
     EMBEDFORGE_PORT=8000 \
     EMBEDFORGE_LOG_FORMAT=json \
     EMBEDFORGE_TOKENS_FILE=/var/lib/embedforge/tokens.json \
-    EMBEDFORGE_MODEL_DIR=/var/lib/embedforge/models
+    EMBEDFORGE_MODEL_DIR=/var/lib/embedforge/models \
+    # The service account has no home directory, and the root filesystem should be
+    # read-only, so point the Hugging Face caches at the writable volume. Without
+    # this, `model download` fails with a permission error.
+    HF_HOME=/var/lib/embedforge/.huggingface
 
 USER embedforge
 WORKDIR /var/lib/embedforge
