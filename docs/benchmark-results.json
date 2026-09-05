@@ -20,30 +20,44 @@
   "results": [
     {
       "model": "dev-hash",
+      "engine": {
+        "default_window": {
+          "idle_p50_ms": 0.33222300044144504,
+          "idle_min_ms": 0.27653700090013444,
+          "concurrent_items_per_second": 16633.659238334738
+        },
+        "long_window": {
+          "idle_p50_ms": 0.3222539999114815,
+          "idle_min_ms": 0.24731399753363803,
+          "concurrent_items_per_second": 16754.52319977064
+        },
+        "long_window_ms": 200.0
+      },
       "dimension": 384,
       "max_input_tokens": 1000000,
       "symmetric": true,
       "declared_size_mb": 0,
       "disk_bytes": 0,
-      "load_seconds": 8.610004442743957e-07,
-      "peak_rss_bytes": 76058624,
-      "rss_before_load_bytes": 76058624,
+      "load_seconds": 5.589972715824842e-07,
+      "peak_rss_bytes": 76169216,
+      "peak_rss_including_engine_bytes": 76169216,
+      "rss_before_load_bytes": 76169216,
       "rss_growth_bytes": 0,
       "latency": {
         "1": {
-          "batch_seconds": 0.00010915600068983622,
-          "ms_per_item": 0.10915600068983622,
-          "items_per_second": 9161.200425815092
+          "batch_seconds": 4.76120003440883e-05,
+          "ms_per_item": 0.0476120003440883,
+          "items_per_second": 21003.10830826422
         },
         "8": {
-          "batch_seconds": 0.00030917399999452755,
-          "ms_per_item": 0.038646749999315944,
-          "items_per_second": 25875.39702608111
+          "batch_seconds": 0.00021785900025861338,
+          "ms_per_item": 0.027232375032326672,
+          "items_per_second": 36720.99840035738
         },
         "32": {
-          "batch_seconds": 0.0008876950014382601,
-          "ms_per_item": 0.027740468794945627,
-          "items_per_second": 36048.41747238973
+          "batch_seconds": 0.0008929350005928427,
+          "ms_per_item": 0.027904218768526334,
+          "items_per_second": 35836.87500070484
         }
       },
       "batch_stability": 1.0,
@@ -168,31 +182,45 @@
     },
     {
       "model": "e5-small-int8",
-      "download_seconds": 6.272197525002412,
+      "download_seconds": 7.968913462002092,
+      "engine": {
+        "default_window": {
+          "idle_p50_ms": 5.567942000197945,
+          "idle_min_ms": 5.389534999267198,
+          "concurrent_items_per_second": 791.5196387974573
+        },
+        "long_window": {
+          "idle_p50_ms": 5.418012999143684,
+          "idle_min_ms": 5.359443999623181,
+          "concurrent_items_per_second": 920.6701805969982
+        },
+        "long_window_ms": 200.0
+      },
       "dimension": 384,
       "max_input_tokens": 512,
       "symmetric": false,
       "declared_size_mb": 135,
       "disk_bytes": 135430514,
-      "load_seconds": 1.083759604000079,
-      "peak_rss_bytes": 602132480,
-      "rss_before_load_bytes": 229818368,
-      "rss_growth_bytes": 372314112,
+      "load_seconds": 0.9059522429997742,
+      "peak_rss_bytes": 602157056,
+      "peak_rss_including_engine_bytes": 1046593536,
+      "rss_before_load_bytes": 228687872,
+      "rss_growth_bytes": 373469184,
       "latency": {
         "1": {
-          "batch_seconds": 0.005085553999379044,
-          "ms_per_item": 5.085553999379044,
-          "items_per_second": 196.6354108366762
+          "batch_seconds": 0.00504343099964899,
+          "ms_per_item": 5.04343099964899,
+          "items_per_second": 198.27772008174543
         },
         "8": {
-          "batch_seconds": 0.029133120999176754,
-          "ms_per_item": 3.641640124897094,
-          "items_per_second": 274.601543728393
+          "batch_seconds": 0.027956982001342112,
+          "ms_per_item": 3.494622750167764,
+          "items_per_second": 286.15392032000983
         },
         "32": {
-          "batch_seconds": 0.09752312699856702,
-          "ms_per_item": 3.0475977187052194,
-          "items_per_second": 328.12729641524106
+          "batch_seconds": 0.10708689000239247,
+          "ms_per_item": 3.3464653125747645,
+          "items_per_second": 298.8227597167597
         }
       },
       "batch_stability": 0.9959282279014587,
@@ -317,31 +345,45 @@
     },
     {
       "model": "e5-base-int8",
-      "download_seconds": 9.68776331999834,
+      "download_seconds": 11.617575915999623,
+      "engine": {
+        "default_window": {
+          "idle_p50_ms": 14.98272599928896,
+          "idle_min_ms": 11.992318999546114,
+          "concurrent_items_per_second": 317.5256165447502
+        },
+        "long_window": {
+          "idle_p50_ms": 12.085976999514969,
+          "idle_min_ms": 11.857763998705195,
+          "concurrent_items_per_second": 275.45005386150024
+        },
+        "long_window_ms": 200.0
+      },
       "dimension": 768,
       "max_input_tokens": 512,
       "symmetric": false,
       "declared_size_mb": 296,
-      "disk_bytes": 295770029,
-      "load_seconds": 1.2306319740018807,
-      "peak_rss_bytes": 858456064,
-      "rss_before_load_bytes": 343154688,
-      "rss_growth_bytes": 515301376,
+      "disk_bytes": 295770027,
+      "load_seconds": 1.1933414519990038,
+      "peak_rss_bytes": 858554368,
+      "peak_rss_including_engine_bytes": 1629949952,
+      "rss_before_load_bytes": 342159360,
+      "rss_growth_bytes": 516395008,
       "latency": {
         "1": {
-          "batch_seconds": 0.012515668000560254,
-          "ms_per_item": 12.515668000560254,
-          "items_per_second": 79.8998503280237
+          "batch_seconds": 0.011393927001336124,
+          "ms_per_item": 11.393927001336124,
+          "items_per_second": 87.76605290544109
         },
         "8": {
-          "batch_seconds": 0.07718553100130521,
-          "ms_per_item": 9.648191375163151,
-          "items_per_second": 103.64636864213216
+          "batch_seconds": 0.07965140600208542,
+          "ms_per_item": 9.956425750260678,
+          "items_per_second": 100.43764952235175
         },
         "32": {
-          "batch_seconds": 0.3508249819969933,
-          "ms_per_item": 10.96328068740604,
-          "items_per_second": 91.21357269897688
+          "batch_seconds": 0.328057959999569,
+          "ms_per_item": 10.251811249986531,
+          "items_per_second": 97.54373891748288
         }
       },
       "batch_stability": 0.9761094450950623,
@@ -466,31 +508,45 @@
     },
     {
       "model": "gte-base-int8",
-      "download_seconds": 10.71302634300082,
+      "download_seconds": 10.43706311799906,
+      "engine": {
+        "default_window": {
+          "idle_p50_ms": 18.396108000160893,
+          "idle_min_ms": 14.553950000845362,
+          "concurrent_items_per_second": 375.4142762476547
+        },
+        "long_window": {
+          "idle_p50_ms": 14.362560999870766,
+          "idle_min_ms": 14.063281003473094,
+          "concurrent_items_per_second": 311.83570467798575
+        },
+        "long_window_ms": 200.0
+      },
       "dimension": 768,
       "max_input_tokens": 8192,
       "symmetric": true,
       "declared_size_mb": 357,
       "disk_bytes": 357402483,
-      "load_seconds": 1.2584123449996696,
-      "peak_rss_bytes": 953925632,
-      "rss_before_load_bytes": 434130944,
-      "rss_growth_bytes": 519794688,
+      "load_seconds": 1.2122451880022709,
+      "peak_rss_bytes": 954028032,
+      "peak_rss_including_engine_bytes": 1905762304,
+      "rss_before_load_bytes": 413081600,
+      "rss_growth_bytes": 540946432,
       "latency": {
         "1": {
-          "batch_seconds": 0.014012111001648009,
-          "ms_per_item": 14.012111001648009,
-          "items_per_second": 71.36683401111986
+          "batch_seconds": 0.013806594000925543,
+          "ms_per_item": 13.806594000925543,
+          "items_per_second": 72.42915956918583
         },
         "8": {
-          "batch_seconds": 0.10107840400087298,
-          "ms_per_item": 12.634800500109122,
-          "items_per_second": 79.14648118040039
+          "batch_seconds": 0.09950741200009361,
+          "ms_per_item": 12.438426500011701,
+          "items_per_second": 80.39602115259991
         },
         "32": {
-          "batch_seconds": 0.43386496099992655,
-          "ms_per_item": 13.558280031247705,
-          "items_per_second": 73.75566795311092
+          "batch_seconds": 0.43340768100097193,
+          "ms_per_item": 13.543990031280373,
+          "items_per_second": 73.83348612118445
         }
       },
       "batch_stability": 0.9732951521873474,
@@ -615,31 +671,45 @@
     },
     {
       "model": "e5-small",
-      "download_seconds": 9.880063358999905,
+      "download_seconds": 10.220599234002293,
+      "engine": {
+        "default_window": {
+          "idle_p50_ms": 7.465928996680304,
+          "idle_min_ms": 6.777320999390213,
+          "concurrent_items_per_second": 689.5839104701529
+        },
+        "long_window": {
+          "idle_p50_ms": 9.240310999302892,
+          "idle_min_ms": 6.795135999709601,
+          "concurrent_items_per_second": 597.131666826358
+        },
+        "long_window_ms": 200.0
+      },
       "dimension": 384,
       "max_input_tokens": 512,
       "symmetric": false,
       "declared_size_mb": 487,
-      "disk_bytes": 487352176,
-      "load_seconds": 1.5207985250017373,
-      "peak_rss_bytes": 1241927680,
-      "rss_before_load_bytes": 655847424,
-      "rss_growth_bytes": 586080256,
+      "disk_bytes": 487352177,
+      "load_seconds": 1.4593089490008424,
+      "peak_rss_bytes": 1242025984,
+      "peak_rss_including_engine_bytes": 2064351232,
+      "rss_before_load_bytes": 648511488,
+      "rss_growth_bytes": 593514496,
       "latency": {
         "1": {
-          "batch_seconds": 0.00652369700037525,
-          "ms_per_item": 6.52369700037525,
-          "items_per_second": 153.28731545049976
+          "batch_seconds": 0.00751210399903357,
+          "ms_per_item": 7.51210399903357,
+          "items_per_second": 133.1184978440993
         },
         "8": {
-          "batch_seconds": 0.04105137499936973,
-          "ms_per_item": 5.131421874921216,
-          "items_per_second": 194.87775988314218
+          "batch_seconds": 0.03556845099956263,
+          "ms_per_item": 4.446056374945329,
+          "items_per_second": 224.9184256041505
         },
         "32": {
-          "batch_seconds": 0.13594077800007653,
-          "ms_per_item": 4.248149312502392,
-          "items_per_second": 235.396622490876
+          "batch_seconds": 0.14010290800069924,
+          "ms_per_item": 4.378215875021851,
+          "items_per_second": 228.4035389175526
         }
       },
       "batch_stability": 1.0000001192092896,
@@ -764,31 +834,45 @@
     },
     {
       "model": "e5-base",
-      "download_seconds": 23.135889973000303,
+      "download_seconds": 19.847354800996982,
+      "engine": {
+        "default_window": {
+          "idle_p50_ms": 21.06177700261469,
+          "idle_min_ms": 20.129397002165206,
+          "concurrent_items_per_second": 188.12966041879716
+        },
+        "long_window": {
+          "idle_p50_ms": 22.110765999968862,
+          "idle_min_ms": 20.571065000694944,
+          "concurrent_items_per_second": 223.57250700802226
+        },
+        "long_window_ms": 200.0
+      },
       "dimension": 768,
       "max_input_tokens": 512,
       "symmetric": false,
       "declared_size_mb": 1127,
-      "disk_bytes": 1127142679,
-      "load_seconds": 2.682920193998143,
-      "peak_rss_bytes": 2265477120,
-      "rss_before_load_bytes": 1236545536,
-      "rss_growth_bytes": 1028931584,
+      "disk_bytes": 1127142680,
+      "load_seconds": 2.587740760001907,
+      "peak_rss_bytes": 2265575424,
+      "peak_rss_including_engine_bytes": 3901046784,
+      "rss_before_load_bytes": 1133375488,
+      "rss_growth_bytes": 1132199936,
       "latency": {
         "1": {
-          "batch_seconds": 0.019986167000752175,
-          "ms_per_item": 19.986167000752175,
-          "items_per_second": 50.0346064336581
+          "batch_seconds": 0.019950134999817237,
+          "ms_per_item": 19.950134999817237,
+          "items_per_second": 50.12497409211321
         },
         "8": {
-          "batch_seconds": 0.12073707200033823,
-          "ms_per_item": 15.092134000042279,
-          "items_per_second": 66.25968203020187
+          "batch_seconds": 0.11683020199780003,
+          "ms_per_item": 14.603775249725004,
+          "items_per_second": 68.47544439023262
         },
         "32": {
-          "batch_seconds": 0.5262186439977086,
-          "ms_per_item": 16.444332624928393,
-          "items_per_second": 60.811224317128804
+          "batch_seconds": 0.5438035129991476,
+          "ms_per_item": 16.993859781223364,
+          "items_per_second": 58.84478352027519
         }
       },
       "batch_stability": 1.0,
@@ -913,31 +997,45 @@
     },
     {
       "model": "gte-base",
-      "download_seconds": 22.696842793000542,
+      "download_seconds": 22.336261991997162,
+      "engine": {
+        "default_window": {
+          "idle_p50_ms": 28.21140000014566,
+          "idle_min_ms": 24.31094300118275,
+          "concurrent_items_per_second": 231.89688875873574
+        },
+        "long_window": {
+          "idle_p50_ms": 24.851543999830028,
+          "idle_min_ms": 24.008118998608552,
+          "concurrent_items_per_second": 220.16218983766151
+        },
+        "long_window_ms": 200.0
+      },
       "dimension": 768,
       "max_input_tokens": 8192,
       "symmetric": true,
       "declared_size_mb": 1272,
-      "disk_bytes": 1272586326,
-      "load_seconds": 3.0041541130012774,
-      "peak_rss_bytes": 2410938368,
-      "rss_before_load_bytes": 1236545536,
-      "rss_growth_bytes": 1174392832,
+      "disk_bytes": 1272586327,
+      "load_seconds": 2.817903031998867,
+      "peak_rss_bytes": 2411270144,
+      "peak_rss_including_engine_bytes": 4159606784,
+      "rss_before_load_bytes": 1380814848,
+      "rss_growth_bytes": 1030455296,
       "latency": {
         "1": {
-          "batch_seconds": 0.02455380600076751,
-          "ms_per_item": 24.55380600076751,
-          "items_per_second": 40.726883643568
+          "batch_seconds": 0.023982217000593664,
+          "ms_per_item": 23.982217000593664,
+          "items_per_second": 41.6975628222881
         },
         "8": {
-          "batch_seconds": 0.14916559199991752,
-          "ms_per_item": 18.64569899998969,
-          "items_per_second": 53.63167130395878
+          "batch_seconds": 0.1506464539997978,
+          "ms_per_item": 18.830806749974727,
+          "items_per_second": 53.1044693558518
         },
         "32": {
-          "batch_seconds": 0.6723336239992932,
-          "ms_per_item": 21.010425749977912,
-          "items_per_second": 47.595418193800825
+          "batch_seconds": 0.6491110040005879,
+          "ms_per_item": 20.28471887501837,
+          "items_per_second": 49.29819368764086
         }
       },
       "batch_stability": 1.0000001192092896,
@@ -1062,31 +1160,45 @@
     },
     {
       "model": "e5-sk-large",
-      "download_seconds": 51.57193121800083,
+      "download_seconds": 50.38863486899936,
+      "engine": {
+        "default_window": {
+          "idle_p50_ms": 82.50440099800471,
+          "idle_min_ms": 72.1272320006392,
+          "concurrent_items_per_second": 58.68755428617694
+        },
+        "long_window": {
+          "idle_p50_ms": 80.65207899926463,
+          "idle_min_ms": 72.87878799979808,
+          "concurrent_items_per_second": 62.80937703266537
+        },
+        "long_window_ms": 200.0
+      },
       "dimension": 1024,
       "max_input_tokens": 512,
       "symmetric": false,
       "declared_size_mb": 1462,
       "disk_bytes": 1461670380,
-      "load_seconds": 3.267312653002591,
-      "peak_rss_bytes": 1954512896,
-      "rss_before_load_bytes": 1360814080,
-      "rss_growth_bytes": 593698816,
+      "load_seconds": 3.1537070460035466,
+      "peak_rss_bytes": 1987796992,
+      "peak_rss_including_engine_bytes": 3897200640,
+      "rss_before_load_bytes": 1380814848,
+      "rss_growth_bytes": 606982144,
       "latency": {
         "1": {
-          "batch_seconds": 0.07342826999956742,
-          "ms_per_item": 73.42826999956742,
-          "items_per_second": 13.618732948575408
+          "batch_seconds": 0.07084902399947168,
+          "ms_per_item": 70.84902399947168,
+          "items_per_second": 14.11452047677406
         },
         "8": {
-          "batch_seconds": 0.4894999360003567,
-          "ms_per_item": 61.187492000044585,
-          "items_per_second": 16.343209491235093
+          "batch_seconds": 0.45149057699745754,
+          "ms_per_item": 56.43632212468219,
+          "items_per_second": 17.719085198194623
         },
         "32": {
-          "batch_seconds": 1.9838031950021104,
-          "ms_per_item": 61.99384984381595,
-          "items_per_second": 16.13063235336001
+          "batch_seconds": 1.8652309110002534,
+          "ms_per_item": 58.28846596875792,
+          "items_per_second": 17.156052803585375
         }
       },
       "batch_stability": 1.0,
@@ -1211,31 +1323,45 @@
     },
     {
       "model": "e5-large-instruct",
-      "download_seconds": 38.41303943800085,
+      "download_seconds": 37.35947610600124,
+      "engine": {
+        "default_window": {
+          "idle_p50_ms": 73.04917899818975,
+          "idle_min_ms": 60.04775399924256,
+          "concurrent_items_per_second": 90.20091850138179
+        },
+        "long_window": {
+          "idle_p50_ms": 72.37638399965363,
+          "idle_min_ms": 62.66529099957552,
+          "concurrent_items_per_second": 87.24171300227661
+        },
+        "long_window_ms": 200.0
+      },
       "dimension": 1024,
       "max_input_tokens": 512,
       "symmetric": false,
       "declared_size_mb": 2253,
-      "disk_bytes": 2253137914,
-      "load_seconds": 2.1691207100011525,
-      "peak_rss_bytes": 2140512256,
-      "rss_before_load_bytes": 2140512256,
+      "disk_bytes": 2253137916,
+      "load_seconds": 2.057435749000433,
+      "peak_rss_bytes": 1714835456,
+      "peak_rss_including_engine_bytes": 3409342464,
+      "rss_before_load_bytes": 1714835456,
       "rss_growth_bytes": 0,
       "latency": {
         "1": {
-          "batch_seconds": 0.062485579001076985,
-          "ms_per_item": 62.485579001076985,
-          "items_per_second": 16.003692627746386
+          "batch_seconds": 0.07227727200006484,
+          "ms_per_item": 72.27727200006484,
+          "items_per_second": 13.835607962612409
         },
         "8": {
-          "batch_seconds": 0.43604336800126475,
-          "ms_per_item": 54.505421000158094,
-          "items_per_second": 18.346798935781074
+          "batch_seconds": 0.42881471600048826,
+          "ms_per_item": 53.60183950006103,
+          "items_per_second": 18.656076159454592
         },
         "32": {
-          "batch_seconds": 1.8755070619990875,
-          "ms_per_item": 58.60959568747148,
-          "items_per_second": 17.062052523487417
+          "batch_seconds": 1.6802282509997895,
+          "ms_per_item": 52.50713284374342,
+          "items_per_second": 19.04503151935398
         }
       },
       "batch_stability": 1.0,
@@ -1360,31 +1486,45 @@
     },
     {
       "model": "bge-m3",
-      "download_seconds": 36.4314886889988,
+      "download_seconds": 36.905431008999585,
+      "engine": {
+        "default_window": {
+          "idle_p50_ms": 68.81214900204213,
+          "idle_min_ms": 61.47744600093574,
+          "concurrent_items_per_second": 92.83196529484154
+        },
+        "long_window": {
+          "idle_p50_ms": 69.43626000065706,
+          "idle_min_ms": 59.4759060004435,
+          "concurrent_items_per_second": 92.4782353341774
+        },
+        "long_window_ms": 200.0
+      },
       "dimension": 1024,
       "max_input_tokens": 8192,
       "symmetric": true,
       "declared_size_mb": 2285,
       "disk_bytes": 2284644821,
-      "load_seconds": 2.13684453300084,
-      "peak_rss_bytes": 3189919744,
-      "rss_before_load_bytes": 3189919744,
+      "load_seconds": 2.0140550200012513,
+      "peak_rss_bytes": 2906222592,
+      "peak_rss_including_engine_bytes": 4519477248,
+      "rss_before_load_bytes": 2906222592,
       "rss_growth_bytes": 0,
       "latency": {
         "1": {
-          "batch_seconds": 0.0627396210002189,
-          "ms_per_item": 62.739621000218904,
-          "items_per_second": 15.938891310747811
+          "batch_seconds": 0.05883535300017684,
+          "ms_per_item": 58.83535300017684,
+          "items_per_second": 16.996583669634724
         },
         "8": {
-          "batch_seconds": 0.467412318001152,
-          "ms_per_item": 58.426539750144,
-          "items_per_second": 17.11550956596801
+          "batch_seconds": 0.3993981889980205,
+          "ms_per_item": 49.92477362475256,
+          "items_per_second": 20.030135890374932
         },
         "32": {
-          "batch_seconds": 1.7759611530018447,
-          "ms_per_item": 55.498786031307645,
-          "items_per_second": 18.018412140328365
+          "batch_seconds": 1.6347254480024276,
+          "ms_per_item": 51.08517025007586,
+          "items_per_second": 19.575152536533142
         }
       },
       "batch_stability": 1.0,
@@ -1509,31 +1649,45 @@
     },
     {
       "model": "jina-v3",
-      "download_seconds": 28.46836885200173,
+      "download_seconds": 27.993494243000896,
+      "engine": {
+        "default_window": {
+          "idle_p50_ms": 858.3919119992061,
+          "idle_min_ms": 811.186071998236,
+          "concurrent_items_per_second": 29.37386827164066
+        },
+        "long_window": {
+          "idle_p50_ms": 844.2132279997168,
+          "idle_min_ms": 795.6135759995959,
+          "concurrent_items_per_second": 28.318723684601228
+        },
+        "long_window_ms": 200.0
+      },
       "dimension": 1024,
       "max_input_tokens": 8192,
       "symmetric": false,
       "declared_size_mb": 2310,
       "disk_bytes": 2309936283,
-      "load_seconds": 1.293029625001509,
-      "peak_rss_bytes": 6908112896,
-      "rss_before_load_bytes": 3189919744,
-      "rss_growth_bytes": 3718193152,
+      "load_seconds": 1.1850246519970824,
+      "peak_rss_bytes": 6909161472,
+      "peak_rss_including_engine_bytes": 7511273472,
+      "rss_before_load_bytes": 2906222592,
+      "rss_growth_bytes": 4002938880,
       "latency": {
         "1": {
-          "batch_seconds": 0.89288147499974,
-          "ms_per_item": 892.88147499974,
-          "items_per_second": 1.1199694785920955
+          "batch_seconds": 0.854531016000692,
+          "ms_per_item": 854.531016000692,
+          "items_per_second": 1.1702325384046566
         },
         "8": {
-          "batch_seconds": 1.2712936959978833,
-          "ms_per_item": 158.91171199973542,
-          "items_per_second": 6.29280238326087
+          "batch_seconds": 1.187377303998801,
+          "ms_per_item": 148.42216299985012,
+          "items_per_second": 6.7375382475797085
         },
         "32": {
-          "batch_seconds": 2.91362736299925,
-          "ms_per_item": 91.05085509372657,
-          "items_per_second": 10.982873241230003
+          "batch_seconds": 2.6258479640018777,
+          "ms_per_item": 82.05774887505868,
+          "items_per_second": 12.186539525019171
         }
       },
       "batch_stability": 1.0,
@@ -1658,31 +1812,45 @@
     },
     {
       "model": "qwen3-0.6b",
-      "download_seconds": 37.14269866900213,
+      "download_seconds": 32.74440410999887,
+      "engine": {
+        "default_window": {
+          "idle_p50_ms": 121.03712200041628,
+          "idle_min_ms": 115.36773700208869,
+          "concurrent_items_per_second": 50.64443989401422
+        },
+        "long_window": {
+          "idle_p50_ms": 127.70879599702312,
+          "idle_min_ms": 122.14202800169005,
+          "concurrent_items_per_second": 48.588432655121906
+        },
+        "long_window_ms": 200.0
+      },
       "dimension": 1024,
       "max_input_tokens": 32768,
       "symmetric": false,
       "declared_size_mb": 2411,
-      "disk_bytes": 2412023267,
-      "load_seconds": 2.524505550001777,
-      "peak_rss_bytes": 3189919744,
-      "rss_before_load_bytes": 3189919744,
+      "disk_bytes": 2412023266,
+      "load_seconds": 2.3697452810010873,
+      "peak_rss_bytes": 2906222592,
+      "peak_rss_including_engine_bytes": 4486090752,
+      "rss_before_load_bytes": 2906222592,
       "rss_growth_bytes": 0,
       "latency": {
         "1": {
-          "batch_seconds": 0.11899518100108253,
-          "ms_per_item": 118.99518100108253,
-          "items_per_second": 8.40370165906889
+          "batch_seconds": 0.1165754969988484,
+          "ms_per_item": 116.5754969988484,
+          "items_per_second": 8.578131989519878
         },
         "8": {
-          "batch_seconds": 0.9600052620007773,
-          "ms_per_item": 120.00065775009716,
-          "items_per_second": 8.333287656493619
+          "batch_seconds": 0.8822164689991041,
+          "ms_per_item": 110.27705862488801,
+          "items_per_second": 9.068069211036372
         },
         "32": {
-          "batch_seconds": 3.8634270250004192,
-          "ms_per_item": 120.7320945312631,
-          "items_per_second": 8.282801717989361
+          "batch_seconds": 3.5556933989973913,
+          "ms_per_item": 111.11541871866848,
+          "items_per_second": 8.999651097314276
         }
       },
       "batch_stability": 1.0,

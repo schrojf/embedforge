@@ -16,6 +16,7 @@ one does not lose the rest of the run.
 """
 
 import argparse
+import asyncio
 import json
 import os
 import shutil
@@ -68,6 +69,19 @@ QUERIES: list[tuple[str, set[int]]] = [
 
 BATCH_SIZES = (1, 8, 32)
 TIMED_ROUNDS = 3
+
+IDLE_REQUESTS = 15
+"""Sequential single-item requests through the engine, with nothing else in flight."""
+
+CONCURRENT_REQUESTS = 64
+"""Single-item requests issued at once, to see batching work end to end."""
+
+LONG_WINDOW_MS = 200.0
+"""A deliberately absurd batch window.
+
+The engine only holds a batch open while every worker is busy, so an idle request
+should be unaffected by this. Measuring at both 5 ms and 200 ms is what proves it:
+before that rule, this column would have read about 200 ms for every model."""
 
 BASELINE_MODEL = "dev-hash"
 """The empty run.
@@ -144,6 +158,52 @@ def peak_rss_bytes() -> int:
     return usage * 1024 if sys.platform.startswith("linux") else usage
 
 
+async def engine_latency(backend: Any, batch_wait_ms: float) -> dict[str, float]:
+    """Measure the serving path, not just the model.
+
+    Everything else here calls the backend directly, which is the model's own cost.
+    This goes through the dispatcher a real request goes through, so it includes
+    queueing, batching and the wait window - the part a caller actually feels.
+    """
+    from embedforge.engine.base import TaskType, TextInput
+    from embedforge.engine.batching import InferenceEngine
+
+    engine = InferenceEngine(
+        backend,
+        max_batch_size=32,
+        batch_wait_ms=batch_wait_ms,
+        queue_max_size=4096,
+        workers=1,
+    )
+    await engine.start()
+    try:
+        # The same input and task as the direct batch-of-one measurement, so the two
+        # are comparable and their difference is the serving path's own cost.
+        idle: list[float] = []
+        for _ in range(IDLE_REQUESTS):
+            started = time.perf_counter()
+            await engine.embed([TextInput(DOCUMENTS[0])], TaskType.DOCUMENT)
+            idle.append((time.perf_counter() - started) * 1000)
+
+        started = time.perf_counter()
+        await asyncio.gather(
+            *(
+                engine.embed([TextInput(f"document {index}")], TaskType.DOCUMENT)
+                for index in range(CONCURRENT_REQUESTS)
+            )
+        )
+        concurrent_seconds = time.perf_counter() - started
+    finally:
+        await engine.aclose()
+
+    idle.sort()
+    return {
+        "idle_p50_ms": idle[len(idle) // 2],
+        "idle_min_ms": idle[0],
+        "concurrent_items_per_second": CONCURRENT_REQUESTS / concurrent_seconds,
+    }
+
+
 def measure(model_id: str, model_dir: Path) -> dict[str, Any]:
     """Run every measurement for one model. Executed in its own process."""
     from embedforge.config import Settings
@@ -211,10 +271,25 @@ def measure(model_id: str, model_dir: Path) -> dict[str, Any]:
         )
         margins.append(best_relevant - best_irrelevant)
 
+    # Capture memory before the engine section. Peak RSS is a process high-water mark,
+    # and the engine measurements below load the model twice more; letting those count
+    # would roughly double the figure and make it useless for sizing a container.
     peak_rss = peak_rss_bytes()
+
+    # The serving path, at the default window and at an absurd one. The engine takes
+    # ownership of the backend's lifecycle, so this runs last.
+    engine_default = asyncio.run(engine_latency(backend, 5.0))
+    engine_long_window = asyncio.run(engine_latency(backend, LONG_WINDOW_MS))
+    peak_rss_including_engine = peak_rss_bytes()
+
     backend.close()
 
     return {
+        "engine": {
+            "default_window": engine_default,
+            "long_window": engine_long_window,
+            "long_window_ms": LONG_WINDOW_MS,
+        },
         "model": model_id,
         "dimension": info.dimension,
         "max_input_tokens": info.max_input_tokens,
@@ -227,6 +302,7 @@ def measure(model_id: str, model_dir: Path) -> dict[str, Any]:
         ),
         "load_seconds": load_seconds,
         "peak_rss_bytes": peak_rss,
+        "peak_rss_including_engine_bytes": peak_rss_including_engine,
         "rss_before_load_bytes": rss_before,
         "rss_growth_bytes": peak_rss - rss_before,
         "latency": latency,
@@ -317,12 +393,12 @@ def render_markdown(payload: dict[str, Any]) -> str:
         f"AVX2 {'yes' if machine['avx2'] else 'no'}, "
         f"AVX-512 VNNI {'yes' if machine['avx512_vnni'] else 'no'}",
         "",
-        "| Model | Disk | RSS | Load | ms/item b=1 | ms/item b=32 | items/s b=32 | Batch-stable | R@1 | MRR | Margin |",
-        "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
+        "| Model | Disk | RSS | Load | ms/item b=1 | ms/item b=32 | items/s b=32 | Idle p50 | Idle @200ms | Batch-stable | R@1 | Margin |",
+        "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
     ]
     for row in results:
         if "error" in row:
-            lines.append(f"| `{row['model']}` | — | — | — | — | — | — | — | — | — | failed |")
+            lines.append(f"| `{row['model']}` | — | — | — | — | — | — | — | — | — | — | failed |")
             continue
         one, big = row["latency"]["1"], row["latency"]["32"]
         label = f"`{row['model']}`"
@@ -334,8 +410,10 @@ def render_markdown(payload: dict[str, Any]) -> str:
             f"| {row['load_seconds']:.1f}s "
             f"| {one['ms_per_item']:.1f} | {big['ms_per_item']:.1f} "
             f"| {big['items_per_second']:,.0f} "
+            f"| {row['engine']['default_window']['idle_p50_ms']:.1f} ms "
+            f"| {row['engine']['long_window']['idle_p50_ms']:.1f} ms "
             f"| {row['batch_stability']:.4f} "
-            f"| {row['recall_at_1']:.2f} | {row['mrr']:.3f} | {row['mean_margin']:+.3f} |"
+            f"| {row['recall_at_1']:.2f} | {row['mean_margin']:+.3f} |"
         )
     baseline = next((row for row in results if row["model"] == BASELINE_MODEL), None)
     if baseline and "error" not in baseline:

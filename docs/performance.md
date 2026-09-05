@@ -55,6 +55,10 @@ there was never anything to batch with. Under load the workers are busy, the win
 applies, and batches fill up exactly as before — measured unchanged at a mean batch of
 28.6 out of 32.
 
+[benchmarks.md](benchmarks.md) confirms it across every model in the catalog: idle
+latency at a 200 ms window is the same as at 5 ms, for all twelve. The serving path
+itself costs 0.28 ms.
+
 Two details that matter in production:
 
 - **A large request is split.** 200 inputs with `max_batch_size=32` becomes several
