@@ -61,7 +61,7 @@ code.
 | `EMBEDFORGE_INFERENCE_WORKERS` | `1` | Threads running model inference concurrently. Inference releases the GIL, so these are real parallel workers. One is right for most CPU deployments because a single session already uses every core; raise it only alongside a matching drop in `intra_op_threads`. |
 | `EMBEDFORGE_INTRA_OP_THREADS` | `0` | Threads used *inside* one inference call. 0 means auto (cores // inference_workers). |
 | `EMBEDFORGE_MAX_BATCH_SIZE` | `32` | Largest batch handed to the model in one call. |
-| `EMBEDFORGE_BATCH_WAIT_MS` | `5.0` | How long the dispatcher waits to merge concurrent requests into one batch. This is the main latency/throughput dial: a few milliseconds buys a large throughput win under concurrency and is invisible next to inference time. Set to 0 to disable waiting (batches still form from already-queued work). |
+| `EMBEDFORGE_BATCH_WAIT_MS` | `5.0` | How long the dispatcher waits to merge concurrent requests into one batch. Applied only while every inference worker is busy: with a worker free there is nothing to gain by waiting, so a request on an idle server is dispatched at once and never pays this. Set to 0 to disable waiting entirely; batches still form from work that is already queued. |
 | `EMBEDFORGE_QUEUE_MAX_SIZE` | `512` | Items allowed to wait for inference. Beyond this the server sheds load with 503. |
 | `EMBEDFORGE_REQUEST_TIMEOUT` | `30.0` | Seconds a request may wait for its embeddings before returning 504. |
 | `EMBEDFORGE_MAX_ITEMS_PER_REQUEST` | `256` | Largest list a single request may submit. |

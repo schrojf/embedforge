@@ -223,14 +223,17 @@ class InferenceEngine:
                 self._enqueue(job)
             # Whatever else already arrived joins this batch for free.
             stopping = self._drain_nowait() or stopping
-            # Then hold briefly for stragglers, unless a full batch is already waiting.
-            if not stopping and self._batch_wait > 0 and self._pending_count < self._max_batch_size:
+            # Then hold briefly for stragglers - but only when it can actually pay off.
+            if not stopping and self._should_wait_for_more():
                 stopping = await self._collect_until(loop.time() + self._batch_wait) or stopping
 
             while self._pending_count:
                 # Blocking here is intentional: when every worker is busy, new work keeps
                 # accumulating and the next batch forms full.
                 await self._slots.acquire()
+                # Work may have arrived while we waited for a worker. Taking it now costs
+                # nothing and makes the batch we are about to run larger.
+                stopping = self._drain_nowait() or stopping
                 batch = self._take_batch()
                 if batch is None:
                     self._slots.release()
@@ -239,6 +242,30 @@ class InferenceEngine:
 
             if stopping:
                 return
+
+    def _should_wait_for_more(self) -> bool:
+        """Whether holding the batch open can still buy anything.
+
+        Waiting is only useful when the alternative is running a small batch that
+        delays a larger one. Two cases where it cannot help:
+
+        * A full batch is already waiting - there is nothing to add.
+        * A worker is idle. Starting now costs that worker nothing, because it would
+          otherwise sit doing nothing for the whole window; and anything that arrives
+          during inference forms its own batch anyway.
+
+        The second case is the common one on a lightly loaded server, where the old
+        behaviour made a lone request wait the full window for company that never
+        came. Under real load the workers are busy, this returns True, and batches
+        fill up as before.
+        """
+        if self._batch_wait <= 0:
+            return False
+        if self._pending_count >= self._max_batch_size:
+            return False
+        assert self._slots is not None
+        # locked() is True when acquiring would block, i.e. every worker is busy.
+        return self._slots.locked()
 
     def _enqueue(self, job: _Job) -> None:
         queue = self._pending[job.task]

@@ -207,3 +207,60 @@ async def test_closing_a_never_started_engine_is_safe() -> None:
     engine = InferenceEngine(RecordingBackend())
     await engine.aclose()
     assert not engine.ready
+
+
+async def test_an_idle_request_does_not_wait_for_the_batch_window() -> None:
+    """A lone request on an idle server has nothing to batch with, so it must not wait.
+
+    The window exists to let concurrent requests find each other. With every worker
+    free there is no company coming that starting now would miss, and waiting is pure
+    added latency.
+    """
+    backend = RecordingBackend()
+    # A window long enough that waiting for it would be unmistakable.
+    engine = await make_engine(backend, batch_wait_ms=250, workers=1)
+    try:
+        started = time.perf_counter()
+        await engine.embed([TextInput("alone")], TaskType.DOCUMENT)
+        elapsed = time.perf_counter() - started
+    finally:
+        await engine.aclose()
+    assert elapsed < 0.05, f"waited {elapsed * 1000:.0f}ms for a batch that could not grow"
+
+
+async def test_the_window_still_applies_once_every_worker_is_busy() -> None:
+    """Under load the window is what makes batches full, so it must still be used."""
+    backend = RecordingBackend(delay=0.05)
+    engine = await make_engine(backend, max_batch_size=32, batch_wait_ms=40, workers=1)
+    try:
+        # The first request occupies the only worker; the rest must accumulate.
+        first = asyncio.create_task(engine.embed([TextInput("first")], TaskType.DOCUMENT))
+        await asyncio.sleep(0.01)
+        rest = [
+            asyncio.create_task(engine.embed([TextInput(f"t{index}")], TaskType.DOCUMENT))
+            for index in range(12)
+        ]
+        await asyncio.gather(first, *rest)
+    finally:
+        await engine.aclose()
+
+    assert max(len(texts) for _, texts in backend.batches) > 1, "work was not merged"
+    assert len(backend.batches) < 13
+
+
+async def test_work_arriving_while_a_worker_is_busy_joins_the_next_batch() -> None:
+    """Items queued while the dispatcher waits for a slot must not sit out a round."""
+    backend = RecordingBackend(delay=0.05)
+    engine = await make_engine(backend, max_batch_size=32, batch_wait_ms=0, workers=1)
+    try:
+        first = asyncio.create_task(engine.embed([TextInput("first")], TaskType.DOCUMENT))
+        await asyncio.sleep(0.01)
+        later = [
+            asyncio.create_task(engine.embed([TextInput(f"t{index}")], TaskType.DOCUMENT))
+            for index in range(8)
+        ]
+        await asyncio.gather(first, *later)
+    finally:
+        await engine.aclose()
+    # Even with no waiting window, the eight that arrived during inference run together.
+    assert max(len(texts) for _, texts in backend.batches) >= 8

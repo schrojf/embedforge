@@ -129,9 +129,10 @@ class Settings(BaseSettings):
     batch_wait_ms: float = Field(default=5.0, ge=0)
     """How long the dispatcher waits to merge concurrent requests into one batch.
 
-    This is the main latency/throughput dial: a few milliseconds buys a large
-    throughput win under concurrency and is invisible next to inference time.
-    Set to 0 to disable waiting (batches still form from already-queued work).
+    Applied only while every inference worker is busy: with a worker free there is
+    nothing to gain by waiting, so a request on an idle server is dispatched at once
+    and never pays this. Set to 0 to disable waiting entirely; batches still form
+    from work that is already queued.
     """
 
     queue_max_size: int = Field(default=512, ge=1)

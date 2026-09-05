@@ -35,10 +35,25 @@ HTTP request ──┘         ▲                                              
    a future. The event loop is never blocked, so the server keeps accepting connections
    while the model works.
 2. A single dispatcher coroutine collects inputs. It takes everything already queued,
-   then waits up to `EMBEDFORGE_BATCH_WAIT_MS` for more — so requests that arrive within
-   a few milliseconds of each other travel together.
+   then — **only if every worker is already busy** — waits up to
+   `EMBEDFORGE_BATCH_WAIT_MS` for more, so requests that arrive within a few
+   milliseconds of each other travel together.
 3. Full batches (up to `EMBEDFORGE_MAX_BATCH_SIZE`) run on the inference thread pool.
 4. Results are scattered back to the requests they came from, in the original order.
+
+**The window is skipped when it cannot pay off.** Waiting only helps if the alternative
+is running a small batch that delays a larger one. With a worker sitting idle, starting
+immediately costs that worker nothing — it would otherwise do nothing for the whole
+window — and anything arriving during inference forms its own batch anyway. So a lone
+request on a quiet server is dispatched at once.
+
+This matters more than it sounds. Measured with a 2 ms model and the default 5 ms
+window, a single request on an idle server took **7.7 ms before this rule and 2.5 ms
+after**: the wait was nearly four times the actual work. If you call the API once every
+few minutes, that overhead was paid on every single call and bought nothing, because
+there was never anything to batch with. Under load the workers are busy, the window
+applies, and batches fill up exactly as before — measured unchanged at a mean batch of
+28.6 out of 32.
 
 Two details that matter in production:
 
@@ -70,7 +85,7 @@ same way.
 | Setting | Default | Raise it when | Cost of raising |
 | --- | --- | --- | --- |
 | `EMBEDFORGE_MAX_BATCH_SIZE` | 32 | Throughput matters more than single-request latency. | Slower worst-case latency; more memory per call. |
-| `EMBEDFORGE_BATCH_WAIT_MS` | 5 | Batches are small under load (see metrics below). | Adds directly to every request's latency. |
+| `EMBEDFORGE_BATCH_WAIT_MS` | 5 | Batches are small *under load* (see metrics below). | Adds latency only while every worker is busy. |
 | `EMBEDFORGE_INFERENCE_WORKERS` | 1 | Cores sit idle with one worker (rare on CPU). | Only useful with a matching drop in `intra_op_threads`. |
 | `EMBEDFORGE_INTRA_OP_THREADS` | auto | You need explicit control. | Auto is `cores / inference_workers`, which is usually right. |
 | `EMBEDFORGE_QUEUE_MAX_SIZE` | 512 | You would rather queue than shed, and clients wait patiently. | Longer waits before the 503 that was going to happen anyway. |
@@ -120,6 +135,15 @@ and the configured limits.
 When one process on one machine is not enough, add replicas behind a load balancer
 rather than workers inside one container. Each replica is independent — no shared state
 beyond the token file — so round-robin is enough.
+
+### Setting the window to zero
+
+`EMBEDFORGE_BATCH_WAIT_MS=0` disables the wait entirely. Since the window is already
+skipped when a worker is free, this changes nothing for sporadic traffic and only costs
+you batch size under sustained load — the dispatcher still merges everything already
+queued, so genuinely concurrent requests are still batched. It is a reasonable setting
+if your traffic is always low and you want one less thing to reason about, but it is no
+longer the fix for idle latency that it used to be.
 
 Before adding hardware, check the cheaper wins in order:
 
