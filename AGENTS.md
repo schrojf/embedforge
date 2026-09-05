@@ -1,0 +1,63 @@
+# Project Instructions for AI Agents
+
+Instructions for AI coding agents working on embedforge.
+
+This file follows the [AGENTS.md](https://agents.md) convention.
+Claude Code reads `CLAUDE.md`, which imports this file through its `@AGENTS.md` line, so
+both instruction paths stay aligned.
+
+## Build and Test
+
+This project uses [uv](https://docs.astral.sh/uv/) for Python and dependency management.
+The `Makefile` wraps the common commands:
+
+```bash
+make install     # uv sync --all-extras --all-groups (install all deps into .venv)
+make lint        # auto-format and lint: codespell, ruff check --fix, ruff format, basedpyright
+make lint-check  # check-only variant, matching CI (fails instead of fixing)
+make test        # uv run pytest
+make build       # locked, non-isolated uv build (wheel and sdist)
+```
+
+Or call uv directly with the checked-in configuration:
+`UV_CONFIG_FILE=uv.toml uv run pytest tests/test_foo.py`,
+`UV_CONFIG_FILE=uv.toml uv add --exclude-newer "14 days" some-package`, or
+`UV_CONFIG_FILE=uv.toml uv run python -m embedforge`.
+
+## Conventions
+
+- **Layout**: `src/` layout; code in `src/embedforge/`, tests in `tests/`.
+
+- **Python**: 3.11+ only; use modern typing (full annotations, no `from __future__`).
+
+- **Lint/format**: ruff (line length 100) plus codespell; type checking is
+  [basedpyright](https://docs.basedpyright.com/). Tool settings live in
+  `pyproject.toml`; project-owned uv settings live in `uv.toml`. Run `make lint` before
+  committing.
+
+- **Dependencies**: add with `UV_CONFIG_FILE=uv.toml uv add --exclude-newer "14 days"`
+  (runtime) or `UV_CONFIG_FILE=uv.toml uv add --dev --exclude-newer "14 days"` (dev).
+  Commit `uv.lock`. Don’t use pip, poetry, or requirements.txt.
+
+- **Versioning**: the version comes from git tags via dynamic versioning; never edit a
+  version number in `pyproject.toml`.
+
+See [docs/development.md](docs/development.md) for full developer workflows.
+
+## Template Maintenance
+
+This project was built from
+[simple-modern-uv](https://github.com/jlevy/simple-modern-uv).
+Routine project work uses the instructions above; do not fetch the upstream template for
+every task.
+
+For toolchain changes, selective adoption of another template feature, or a Copier
+update, use the portable
+[simple-modern-uv skill](https://github.com/jlevy/simple-modern-uv/tree/main/skills/simple-modern-uv).
+It preserves project-specific choices and distinguishes selective changes from full
+template management.
+`.copier-answers.yml` records this project’s update lineage.
+
+<!-- This document follows common-doc-guidelines.md.
+See github.com/jlevy/practical-prose and review guidelines before editing.
+-->

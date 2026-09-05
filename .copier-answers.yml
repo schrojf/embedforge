@@ -1,0 +1,11 @@
+# Changes here will be overwritten by Copier. Do not edit manually.
+_commit: v0.5.0
+_src_path: gh:jlevy/simple-modern-uv
+package_author_email: viliam@schrojf.sk
+package_author_name: Viliam Schrojf
+package_description: Production-ready ONNX embedding server with embed and query endpoints
+package_github_org: schrojf
+package_license: MIT
+package_module: embedforge
+package_name: embedforge
+publish_to_pypi: false

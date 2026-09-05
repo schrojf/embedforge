@@ -1,0 +1,37 @@
+# embedforge
+
+> ⚠️ **This is the initial README for your
+> [simple-modern-uv](https://github.com/jlevy/simple-modern-uv) project.** Fill it in
+> and delete this message.
+> Keep or adapt the general setup instructions below as needed.
+
+* * *
+
+## Working with a Coding Agent
+
+This repository includes [`AGENTS.md`](AGENTS.md), with the build, test, dependency,
+layout, and release conventions a coding agent needs for routine work.
+`CLAUDE.md` imports the same instructions for Claude Code.
+
+For an ordinary change, tell your agent: “Read `AGENTS.md`, implement this change, and
+run the required checks.”
+For toolchain or template maintenance, ask it to use the
+[simple-modern-uv skill](https://github.com/jlevy/simple-modern-uv/tree/main/skills/simple-modern-uv),
+which distinguishes selective feature adoption from a full Copier update.
+
+* * *
+
+## Project Docs
+
+For how to install uv and Python, see [installation.md](docs/installation.md).
+
+For development workflows, see [development.md](docs/development.md).
+
+* * *
+
+*This project was built from
+[simple-modern-uv](https://github.com/jlevy/simple-modern-uv).*
+
+<!-- This document follows common-doc-guidelines.md.
+See github.com/jlevy/practical-prose and review guidelines before editing.
+-->
