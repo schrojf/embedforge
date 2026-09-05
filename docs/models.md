@@ -176,7 +176,8 @@ Four rules decide inclusion:
 | [snowflake-arctic-embed-l-v2.0](https://huggingface.co/Snowflake/snowflake-arctic-embed-l-v2.0) | 568M | 72.54 | Beaten by e5-large-instruct at the same size. |
 | [jina-embeddings-v4](https://huggingface.co/jinaai/jina-embeddings-v4) | 3.8B | 72.44 | Far too large for CPU; restrictive licence. |
 | [embeddinggemma-300m](https://huggingface.co/google/embeddinggemma-300m) | 308M | 69.25 | Last of the realistic candidates on Slovak. |
-| [nomic-embed-text-v2-moe](https://huggingface.co/nomic-ai/nomic-embed-text-v2-moe) | 475M (305M active) | not evaluated | No Slovak evidence; MoE routing is awkward in ONNX. |
+| [nomic-embed-text-v2-moe](https://huggingface.co/nomic-ai/nomic-embed-text-v2-moe) | 475M (305M active) | not evaluated | Multilingual, but only 512 tokens of context and no ONNX build. |
+| [nomic-embed-text-v1.5](https://huggingface.co/nomic-ai/nomic-embed-text-v1.5) | 137M | n/a | English only. |
 
 ### gemini-embedding-001 (and text-embedding-3-large)
 
@@ -222,16 +223,42 @@ Note that late interaction is not a drop-in: multi-vector retrieval needs a vect
 that supports it, which is a different architecture from the one-vector-per-document
 model this API assumes.
 
-### nomic-embed-text-v2-moe
+### The two Nomic models
 
-A sparse mixture-of-experts encoder: 475M total parameters but only 305M active per
-forward pass, 768 dimensions truncatable to 256, 100+ languages, Apache-2.0, fully
-reproducible training. The efficiency idea is sound and the licence is clean.
+Nomic ships two current text embedders, and they split exactly along the axis that
+matters here: the long-context one is English, and the multilingual one is short.
 
-It is absent for want of evidence rather than on any fault: it was not in the SkMTEB
-study, so there is no Slovak number for it, and MoE routing exports to ONNX awkwardly.
-Its memory footprint is also the full 475M even though only 305M are active, so on CPU
-it costs like a mid-size model while computing like a small one.
+**`nomic-embed-text-v1.5`** — 137M parameters, 768 dimensions truncatable to 64,
+Apache-2.0, and it publishes a full set of ONNX builds including int8 and q4. On paper
+it is the cheapest long-context model anywhere: a third of `gte-base`'s size for the
+same job.
+
+Its context is worth being precise about, because its own metadata disagrees with
+itself. `config.json` declares `max_position_embeddings: 2048`, while
+`sentence_bert_config.json` says `max_seq_length: 8192`. The 2048 is real — that is the
+window it was trained on. Going beyond it is possible but not free: the model card
+requires you to opt into dynamic RoPE scaling (`{"rope_theta": 1000.0, "rope_type":
+"dynamic", "factor": 2.0}`) *and* raise the tokenizer's limit. An ONNX export made
+without those settings is a 2048-token model whatever the config claims, and would
+silently truncate longer input rather than fail.
+
+None of which matters here, because the authors declare it `language: en`. It is an
+English-only model, and this deployment is Slovak-first.
+
+**`nomic-embed-text-v2-moe`** — the multilingual one: 101 declared languages including
+Slovak and Czech, a sparse mixture of experts with 475M total parameters but only 305M
+active per pass, Apache-2.0, fully reproducible training. The efficiency idea is sound
+and the licence is clean.
+
+Two things keep it out. Its **maximum sequence length is 512 tokens**, stated twice in
+its own model card — so it is not a long-context option at all, it sits in the same
+bracket as `e5-base` while being larger. And it publishes no ONNX build, so it would
+need the same local export path as `e5-sk-large`, with MoE routing to get right. It was
+also not in the SkMTEB study, so there is no Slovak number for it, only the authors'
+claim of support.
+
+If Nomic ship a multilingual model with a long context and an ONNX build, it becomes an
+immediate candidate. Today you can have two of those three.
 
 ### snowflake-arctic-embed-l-v2.0
 
