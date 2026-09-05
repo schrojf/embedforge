@@ -85,15 +85,22 @@ ENV EMBEDFORGE_MODEL_ID=${MODEL_ID}
 RUN embedforge model download ${MODEL_ID} && embedforge model verify ${MODEL_ID}
 ```
 
-Size the container for the model, not the server. The process needs roughly the model's
-download size in RAM plus a few hundred megabytes:
+Size the container for the model, not the server, and size it from **measured resident
+memory** rather than the download: peak RSS runs from 1.4x to 4.4x the file size. These
+are measured in [benchmarks.md](benchmarks.md):
 
-| Model | Download | Suggested memory limit |
-| --- | --- | --- |
-| `e5-small-int8` | 135 MB | 512 MB |
-| `e5-base` | 1.1 GB | 2 GB |
-| `e5-sk-large` | 1.5 GB | 2 GB |
-| `e5-large-instruct`, `bge-m3`, `jina-v3`, `qwen3-0.6b` | 2.3-2.4 GB | 4 GB |
+| Model | Download | Measured peak RSS | Suggested limit |
+| --- | --- | --- | --- |
+| `e5-small-int8` | 135 MB | 602 MB | 1 GB |
+| `e5-base-int8` | 296 MB | 858 MB | 1.5 GB |
+| `e5-small` | 487 MB | 1.2 GB | 2 GB |
+| `e5-base`, `gte-base` | 1.1-1.3 GB | 2.3-2.4 GB | 3 GB |
+| `e5-sk-large`, `e5-large-instruct` | 1.5-2.3 GB | 2.0-2.1 GB | 3 GB |
+| `bge-m3`, `qwen3-0.6b` | 2.3-2.4 GB | 3.2 GB | 4 GB |
+| `jina-v3` | 2.3 GB | **6.9 GB** | 8 GB |
+
+`jina-v3` is the trap: a 2.3 GB download that needs about 7 GB resident. A 4 GB limit
+kills it.
 
 Model files are re-downloadable, so they do not need backing up — unlike the token file.
 

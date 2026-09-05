@@ -76,11 +76,12 @@ CATALOG: list[tuple[ModelInfo, OnnxModelConfig]] = [
             symmetric=False,
             description=(
                 "Dynamically quantized e5-small. Same architecture and vectors, one quarter "
-                "of the size and typically around twice as fast on CPU."
+                "of the size and around 1.4x the throughput on a CPU without AVX-512 VNNI."
             ),
             pros=(
                 "135 MB on disk and the lowest memory footprint in the catalog.",
-                "Usually the fastest real model on a CPU-only server.",
+                "The fastest real model here: 328 items/s at batch 32 on an i7-7700HQ, "
+                "and 602 MB resident. See docs/benchmarks.md.",
             ),
             cons=(
                 "Quantization costs some accuracy. Compare it against e5-small on your own "
@@ -147,7 +148,7 @@ CATALOG: list[tuple[ModelInfo, OnnxModelConfig]] = [
                 "if the accuracy cost turns out to be acceptable on your data."
             ),
             pros=(
-                "296 MB instead of 1.1 GB, and substantially faster on CPU.",
+                "296 MB instead of 1.1 GB, and about 1.5x the throughput on CPU.",
                 "Keeps e5-base's 768 dimensions and its prefix behavior.",
             ),
             cons=(

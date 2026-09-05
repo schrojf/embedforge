@@ -82,21 +82,27 @@ CPU. Then move only if something pushes you:
 
 ### What this actually costs
 
-Measured on one 8-core CPU, single item per call, so treat it as a ratio rather than a
-number for your hardware:
+Measured at batch 32 on an i7-7700HQ (4 cores, no AVX-512). Full table, method, and
+memory figures in [benchmarks.md](benchmarks.md):
 
-| Model | Load | ms/item | items/s |
-| --- | --- | --- | --- |
-| `e5-small-int8` | 0.8s | 4.9 | 205 |
-| `e5-sk-large` | 3.1s | 44 | 23 |
-| `qwen3-0.6b` | 2.9s | 180 | 6 |
-| `jina-v3` | 1.0s | 331 | 3 |
+| Model | ms/item | items/s | Peak RSS |
+| --- | ---: | ---: | ---: |
+| `e5-small-int8` | 3.0 | 328 | 602 MB |
+| `e5-small` | 4.2 | 235 | 1.2 GB |
+| `e5-base` | 16.4 | 61 | 2.3 GB |
+| `e5-sk-large` | 62.0 | 16 | 2.0 GB |
+| `bge-m3` | 55.5 | 18 | 3.2 GB |
+| `jina-v3` | 91.1 | 11 | 6.9 GB |
+| `qwen3-0.6b` | 120.7 | 8 | 3.2 GB |
 
-**`jina-v3` is 68x slower than `e5-small-int8` on CPU.** Its benchmark scores are real,
-and so is that number: an 8192-token context model with 572M parameters is not a CPU
-model in any practical sense. Batch throughput is better than these per-item figures
-suggest (see [performance.md](performance.md)), but the ratio holds. If you want
-`jina-v3`, plan for a GPU.
+**`e5-small-int8` does 30x the throughput of `jina-v3` on this CPU**, and fits in a
+tenth of the memory. Both jina-v3 and qwen3-0.6b are good models being asked to run on
+the wrong hardware; if you want either, plan for a GPU.
+
+Batching changes the picture more than anything else for `jina-v3`: 893 ms/item served
+one at a time, 91 ms/item at batch 32 — a 9.8x swing, which the server's dynamic
+batching gets for you automatically. `qwen3-0.6b` gains nothing from batching at all,
+because a 28-layer decoder already saturates the cores on a single item.
 
 Dimension is a running cost, not just a download: 1024-dimensional vectors cost roughly
 2.7× what 384-dimensional ones cost to store and search. That difference usually
@@ -104,9 +110,11 @@ outlives the latency difference.
 
 ### Is int8 worth it?
 
-Quantized variants are about a quarter of the size and typically around twice as fast on
-CPU, at some accuracy cost that depends on your data. That is exactly what the
-comparison tool is for:
+Quantized variants are about a quarter of the size. The speedup depends on your CPU:
+measured on a machine **without** AVX-512 VNNI it is around 1.4-1.55x, not the 2x these
+builds are capable of, because the published E5 int8 graphs target VNNI specifically.
+See [benchmarks.md](benchmarks.md). The accuracy cost depends on your data, which is
+what the comparison tool is for:
 
 ```bash
 embedforge model download e5-base
@@ -135,7 +143,8 @@ Measured here, as the cosine between one text embedded alone and inside a batch:
 | Qwen3-Embedding-0.6B int8 *(not shipped)* | 0.8646 |
 
 `embedforge model compare` reports this per model, so you can check it on your own
-hardware — the numbers depend on the CPU as well as the model.
+hardware — the numbers depend on the CPU as well as the model, and
+[benchmarks.md](benchmarks.md) has the full measured set.
 
 How much it matters depends on your margins. At 0.997 the wobble is far smaller than
 the gap between a relevant and an irrelevant result, and nothing changes. At 0.86 it

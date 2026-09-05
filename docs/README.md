@@ -20,6 +20,7 @@ An embedding server with two endpoints — `/v1/embed` for content you store and
 | [deployment.md](deployment.md) | Docker, Compose, reverse proxy, systemd, upgrades. |
 | [operations.md](operations.md) | Health checks, metrics, logs, backup, troubleshooting. |
 | [performance.md](performance.md) | How concurrency works here, and what to tune. |
+| [benchmarks.md](benchmarks.md) | Every model measured on real hardware: speed, memory, quality. |
 
 ## Understanding and extending it
 
