@@ -1,0 +1,24 @@
+# Keep the build context small and the layer cache stable.
+.git
+.github
+.venv
+.ruff_cache
+.pytest_cache
+.mypy_cache
+**/__pycache__
+*.pyc
+dist
+build
+*.egg-info
+data
+docs
+tests
+devtools
+Makefile
+docker-compose.yml
+Dockerfile
+.dockerignore
+.env
+.env.*
+*.md
+!README.md

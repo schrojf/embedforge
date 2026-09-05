@@ -1,0 +1,69 @@
+# Deployment example. See docs/deployment.md.
+#
+#   docker compose build
+#   docker compose run --rm embedforge token create my-client
+#   docker compose up -d
+
+services:
+  embedforge:
+    build:
+      context: .
+      args:
+        # Stamp the image with a real version: VERSION=$(git describe --tags --always)
+        VERSION: ${VERSION:-0.0.0}
+    image: embedforge:${VERSION:-local}
+    restart: unless-stopped
+
+    # Bound to loopback: put a reverse proxy in front for TLS. Change to "8000:8000"
+    # only if this host is not reachable from the internet.
+    ports:
+      - "127.0.0.1:8000:8000"
+
+    environment:
+      EMBEDFORGE_ENV: prod
+      EMBEDFORGE_LOG_FORMAT: json
+      EMBEDFORGE_MODEL_ID: dev-hash
+      # One process for CPU inference: more would each load their own model copy
+      # and fight over the same cores. Scale with replicas or a bigger box instead.
+      EMBEDFORGE_WORKERS: "1"
+      EMBEDFORGE_INFERENCE_WORKERS: "1"
+      EMBEDFORGE_MAX_BATCH_SIZE: "32"
+      EMBEDFORGE_BATCH_WAIT_MS: "5"
+      EMBEDFORGE_QUEUE_MAX_SIZE: "512"
+      # Serving docs publicly is optional; the API does not need them.
+      EMBEDFORGE_DOCS_ENABLED: "true"
+      # Set to your reverse proxy's address if it sets X-Forwarded-For.
+      # EMBEDFORGE_FORWARDED_ALLOW_IPS: "172.18.0.0/16"
+
+    volumes:
+      # Token file and model files. Back this up: tokens cannot be recovered.
+      - embedforge-data:/var/lib/embedforge
+
+    # Longer than EMBEDFORGE_TIMEOUT_GRACEFUL_SHUTDOWN (30s), so in-flight
+    # requests finish instead of being killed mid-inference.
+    stop_grace_period: 40s
+
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+    deploy:
+      resources:
+        limits:
+          # Inference is CPU-bound: this cap is also what the server divides across
+          # its inference threads, via the cgroup CPU affinity it reads at startup.
+          cpus: "4"
+          memory: 2G
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  embedforge-data:
