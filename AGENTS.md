@@ -42,6 +42,40 @@ Or call uv directly with the checked-in configuration:
 - **Versioning**: the version comes from git tags via dynamic versioning; never edit a
   version number in `pyproject.toml`.
 
+## Project Rules
+
+These apply to every change in this repository.
+
+- **Branch and history**: work only on `main`, and keep the history linear. No merge
+  commits; rebase rather than merge.
+
+- **Commits**: commit incrementally. Split a larger change into separate, logically
+  connected commits, each of which lints and tests cleanly on its own. Explain *why* in
+  the message body, not just what.
+
+- **Docs**: `docs/` must stay complete and current, deployment and operations included.
+  A change to configuration, endpoints, CLI commands, or deployment is not finished
+  until the matching document is updated. Keep it simple, but complete.
+
+- **Settings**: every setting is documented by its attribute docstring in
+  `config.py`; pydantic turns those into field descriptions, which feed both
+  `embedforge config` and `docs/configuration.md`. Never add a setting without one.
+
+- **Verification**: `make lint` and `make test` must pass. Changes to the Dockerfile or
+  the runtime path also need a real container run, not only a build.
+
+## Architecture Orientation
+
+`docs/architecture.md` is the map. The parts worth knowing before editing:
+
+- One model is loaded per process, chosen by `EMBEDFORGE_MODEL_ID`.
+- All queueing, batching, and backpressure live in `engine/batching.py`. Load behavior
+  belongs there, not in endpoints. `docs/performance.md` explains the design.
+- The HTTP layer knows nothing about models and the engine nothing about HTTP; keep it
+  that way.
+- Inputs are modality-tagged (`TextInput` today) so image support is additive. Do not
+  reintroduce raw `str` into the engine.
+
 See [docs/development.md](docs/development.md) for full developer workflows.
 
 ## Template Maintenance

@@ -29,6 +29,9 @@ class Settings(BaseSettings):
         env_file=".env",
         env_file_encoding="utf-8",
         extra="ignore",
+        # Attribute docstrings below become field descriptions, so the settings are
+        # documented in exactly one place.
+        use_attribute_docstrings=True,
         # Our own settings use the `model_` prefix; stop pydantic from claiming it.
         protected_namespaces=(),
     )
@@ -39,12 +42,18 @@ class Settings(BaseSettings):
     """Deployment environment. `dev` enables friendlier defaults, never use in production."""
 
     log_level: str = "INFO"
+    """Minimum level to log: DEBUG, INFO, WARNING, ERROR."""
+
     log_format: LogFormat = "json"
+    """`json` for log collectors, `console` for human-readable local output."""
 
     # ---- HTTP server ----
 
     host: str = "127.0.0.1"
+    """Bind address. The container image sets 0.0.0.0; do not expose that directly."""
+
     port: int = Field(default=8000, ge=1, le=65535)
+    """Bind port."""
 
     workers: int = Field(default=1, ge=1)
     """OS processes serving HTTP.
@@ -59,21 +68,32 @@ class Settings(BaseSettings):
     """ASGI root path, when mounted behind a reverse proxy on a subpath."""
 
     proxy_headers: bool = True
+    """Trust X-Forwarded-* headers. Only meaningful behind a reverse proxy."""
+
     forwarded_allow_ips: str = "127.0.0.1"
+    """Which peers may set X-Forwarded-*. Set this to your proxy; never to `*` in public."""
+
     timeout_keep_alive: int = Field(default=5, ge=0)
+    """Seconds an idle keep-alive connection is held open."""
+
     timeout_graceful_shutdown: int = Field(default=30, ge=0)
+    """Seconds to let in-flight requests finish after SIGTERM."""
 
     limit_concurrency: int = Field(default=512, ge=1)
     """Maximum concurrent connections uvicorn accepts before returning 503."""
 
     cors_origins: list[str] = Field(default_factory=list)
+    """Browser origins allowed to call the API, comma-separated. Empty disables CORS."""
     docs_enabled: bool = True
     """Serve the OpenAPI schema and interactive docs at /docs and /redoc."""
 
     # ---- Data locations ----
 
     tokens_file: Path = Path("data/tokens.json")
+    """Where API tokens live. Written by the CLI, read by the server. Back this up."""
+
     model_dir: Path = Path("data/models")
+    """Where downloaded model files live."""
 
     # ---- Authentication ----
 
@@ -121,6 +141,7 @@ class Settings(BaseSettings):
     """Seconds a request may wait for its embeddings before returning 504."""
 
     max_items_per_request: int = Field(default=256, ge=1)
+    """Largest list a single request may submit."""
     max_input_chars: int = Field(default=32_768, ge=1)
     """Per-item input limit, checked before tokenization to bound the work a caller can buy."""
 

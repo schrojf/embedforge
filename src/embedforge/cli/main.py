@@ -105,8 +105,12 @@ def show_config() -> None:
 
     settings = get_settings()
     console.print("[bold]Effective configuration[/bold]  (env prefix: EMBEDFORGE_)\n")
-    for name, value in settings.model_dump().items():
-        console.print(f"  {name:<28} {value}")
+    values = settings.model_dump()
+    for name, field in type(settings).model_fields.items():
+        description = " ".join((field.description or "").split())
+        console.print(f"  [cyan]{name:<28}[/cyan] {values[name]}")
+        if description:
+            console.print(f"  {'':<28} [dim]{description}[/dim]")
     console.print(
         f"\n  {'intra_op_threads (resolved)':<28} {settings.effective_intra_op_threads()}"
     )

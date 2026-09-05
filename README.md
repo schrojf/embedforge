@@ -1,37 +1,68 @@
-# embedforge
+# EmbedForge
 
-> ⚠️ **This is the initial README for your
-> [simple-modern-uv](https://github.com/jlevy/simple-modern-uv) project.** Fill it in
-> and delete this message.
-> Keep or adapt the general setup instructions below as needed.
+An embedding server: `POST /v1/embed` for content you store, `POST /v1/query` for search
+queries, one model loaded per process.
 
-* * *
+- **ONNX-first, CPU-first.** Built for CPU inference, with GPU as an option.
+- **Built for concurrency.** Requests from different callers are merged into batches,
+  run on a thread pool that releases the GIL, and shed with 503 rather than queued
+  without bound. See [performance.md](docs/performance.md).
+- **Token auth.** Scoped bearer tokens managed by a CLI, hashed at rest, revocable
+  without a restart.
+- **Deployable.** A production container image, health and readiness probes, Prometheus
+  metrics, and structured JSON logs.
 
-## Working with a Coding Agent
+## Quick start
 
-This repository includes [`AGENTS.md`](AGENTS.md), with the build, test, dependency,
-layout, and release conventions a coding agent needs for routine work.
-`CLAUDE.md` imports the same instructions for Claude Code.
+```bash
+make install
+embedforge token create my-client    # prints the token once
+embedforge serve
+```
 
-For an ordinary change, tell your agent: “Read `AGENTS.md`, implement this change, and
-run the required checks.”
-For toolchain or template maintenance, ask it to use the
-[simple-modern-uv skill](https://github.com/jlevy/simple-modern-uv/tree/main/skills/simple-modern-uv),
-which distinguishes selective feature adoption from a full Copier update.
+```bash
+curl -s -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+  -d '{"input": ["hello world"]}' http://127.0.0.1:8000/v1/embed
+```
 
-* * *
+With Docker:
 
-## Project Docs
+```bash
+docker compose build
+docker compose run --rm embedforge token create my-client
+docker compose up -d
+```
 
-For how to install uv and Python, see [installation.md](docs/installation.md).
+The default model is `dev-hash`, which produces deterministic but **meaningless**
+vectors so the server runs with no downloads. Real ONNX models are the next step; see
+[models.md](docs/models.md).
 
-For development workflows, see [development.md](docs/development.md).
+## Documentation
+
+Everything is in [docs/](docs/README.md):
+[quickstart](docs/quickstart.md) ·
+[API](docs/api.md) ·
+[authentication](docs/authentication.md) ·
+[CLI](docs/cli.md) ·
+[configuration](docs/configuration.md) ·
+[deployment](docs/deployment.md) ·
+[operations](docs/operations.md) ·
+[performance](docs/performance.md) ·
+[architecture](docs/architecture.md) ·
+[models](docs/models.md)
+
+## Development
+
+```bash
+make install   # sync the environment
+make lint      # ruff, codespell, basedpyright
+make test      # pytest
+make           # all three
+```
+
+See [development.md](docs/development.md).
 
 * * *
 
 *This project was built from
 [simple-modern-uv](https://github.com/jlevy/simple-modern-uv).*
-
-<!-- This document follows common-doc-guidelines.md.
-See github.com/jlevy/practical-prose and review guidelines before editing.
--->
